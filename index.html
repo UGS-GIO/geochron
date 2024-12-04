@@ -299,7 +299,7 @@ a {
   </script>
 
   <!-- ArcGIS JS 4 -->
-  <script src="https://js.arcgis.com/4.10/"></script>
+  <script src="https://js.arcgis.com/4.21/"></script>
 
   <script>
     var app;
@@ -307,10 +307,12 @@ require([
     "esri/Map",
     "esri/Basemap",
     "esri/Graphic",
+    "esri/symbols/SimpleMarkerSymbol",
+    "esri/layers/WFSLayer",
+	"esri/layers/ogc/wfsUtils",
     "esri/layers/FeatureLayer",
     "esri/layers/MapImageLayer",
     "esri/views/MapView",
-    "esri/views/SceneView",
     "esri/widgets/Search",
     "esri/core/watchUtils",
     "esri/widgets/Home",
@@ -344,8 +346,8 @@ require([
     "dojo/dom-construct",
     "dojo/domReady!"
 
-], function(Map, Basemap, Graphic, FeatureLayer, MapImageLayer, MapView, SceneView, Search, watchUtils, Home, Zoom, Compass, Locate, Legend, BasemapToggle, LayerList, QueryTask, Query, query, Memory, ObjectStore, ItemFileReadStore, DataGrid, OnDemandGrid, Selection, List, declare, request, CalciteMaps, CalciteMapsArcGIS, on, dom) {
-
+], function(Map, Basemap, Graphic, SimpleMarkerSymbol, WFSLayer, WFSUtils, FeatureLayer, MapImageLayer, MapView, Search, watchUtils, Home, Zoom, Compass, Locate, Legend, BasemapToggle, LayerList, QueryTask, Query, query, Memory, ObjectStore, ItemFileReadStore, DataGrid, OnDemandGrid, Selection, List, declare, request, CalciteMaps, CalciteMapsArcGIS, on, dom
+) {
     // App
     app = {
         zoom: 8,
@@ -361,7 +363,6 @@ require([
         },
         map: null,
         mapView: null,
-        sceneView: null,
         activeView: null,
         searchWidgetNav: null,
         containerMap: "mapViewDiv",
@@ -384,17 +385,6 @@ require([
             padding: app.uiPadding
         }
     });
-    // 3D View
-    app.sceneView = new SceneView({
-        container: null, // activate
-        map: app.map,
-        zoom: app.zoom,
-        center: app.center,
-        padding: app.viewPadding,
-        ui: {
-            padding: app.uiPadding
-        }
-    });
     // Active view is scene
     setActiveView(app.mapView);
     // Create search widget
@@ -406,20 +396,20 @@ require([
     // Wire-up expand events
     CalciteMapsArcGIS.setSearchExpandEvents(app.searchWidgetNav);
     CalciteMapsArcGIS.setPopupPanelSync(app.mapView);
-    CalciteMapsArcGIS.setPopupPanelSync(app.sceneView);
+    //CalciteMapsArcGIS.setPopupPanelSync(app.sceneView);
     // Menu UI - change Basemaps
     query("#selectBasemapPanel").on("change", function(e) {
         app.mapView.map.basemap = e.target.options[e.target.selectedIndex].dataset.vector;
-        app.sceneView.map.basemap = e.target.value;
+        //app.sceneView.map.basemap = e.target.value;
     });
     // Tab UI - switch views
     query(".calcite-navbar li a[data-toggle='tab']").on("click", function(e) {
         if (e.target.text.indexOf("2D") > -1) {
-            syncViews(app.sceneView, app.mapView);
+            //syncViews(app.sceneView, app.mapView);
             setActiveView(app.mapView);
         } else {
             syncViews(app.mapView, app.sceneView);
-            setActiveView(app.sceneView);
+            //setActiveView(app.sceneView);
         }
         syncSearch(app.activeView);
     });
@@ -479,24 +469,6 @@ require([
                     content: "legend",
                     open: true
                 };
-
-
-                // item.actionsSections = [
-                //     [{
-                //         title: "Layer information",
-                //         className: "esri-icon-description",
-                //         id: "information"
-                //     }],
-                //     [{
-                //         title: "Increase opacity",
-                //         className: "esri-icon-up",
-                //         id: "increase-opacity"
-                //     }, {
-                //         title: "Decrease opacity",
-                //         className: "esri-icon-down",
-                //         id: "decrease-opacity"
-                //     }]
-                // ];
             } 
         }
     });
@@ -519,14 +491,9 @@ require([
     // assign click even to fault name so summary goes to Fault Summary panel
     function addClickHandler(att, lyr) {
         //var el = query("#dataDetail");
-        //on(el , "click", function (){
-        //var click = on("#dataDetail", "click", function () {
-        //click.remove();
-        //$("#dataDetail").off("click");
         $(document).off("click", "#dataDetail");
         //$("#dataDetail").on("click", function(e) {
         $(document).on("click", "#dataDetail", function(e) {
-            //console.log("added click handler");
             showHideCalcitePanels("#panelDetails", "#collapseDetails");
             populateDetailsPanel(lyr, att);
         });
@@ -534,452 +501,440 @@ require([
     }
 
 
+//Popup Templates for All Methods ------------------------------------------------------------
 
-    //Popup Templates
-
-    contentTeph = function(value, key, data) {
-
-var content = "";
-
-if (key === "Project") {
-    content += "<span class='bold' title=''><b> " + data.Project + " </b></span><br>";
-}
-
-if (key === "SampleID") {
-    if (data.SampleID) {
-        content += "<span class='bold' title=''><b>&ensp;Sample</b></span><br> <span id='chronID' class='bold' data-lyr='8' data-id='" + data.OBJECTID + "'>&ensp;&ensp;<b>Identification: </b></span>" + data.SampleID + "<br>";
-    }
-}
-if (key === "SampleMaterial") {
-    if (data.SampleMaterial) {
-        content += "<span class='bold' title='Sample Material'>&ensp;&ensp;<b>Material: </b></span>" + data.SampleMaterial + "<br>";
-    }
-}
-if (key === "Age") {
-    if (data.Age) {
-        content += "<span class='bold' title='Age'>&ensp;&ensp;<b>Age: </b></span>" + data.Age.toFixed(2) + " ± " + data.AgeError + " yr (1σ error)<br>";
-    }
-}
-
-if (key === "LabReportsRS") {
-    content += "<span class='bold'><b>Preview All Available Data: </b></span><a id='dataDetail'>Click </a><br>";
-    if (data.LabReportsRS) {
-        content += "<span class='bold' title='Show complete report for " + data.SampleID + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.LabReportsRS + "' target='_blank'>Opens in new tab</a>";
-    } else if (data.LabReportsRS == null) {
-        content += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
-    }
-}
-
-
-data.Dating_Method;
-
-
-addClickHandler(data.OBJECTID, "8");
-return content;
-
-}
-
-    contentTrit = function(value, key, data) {
-
+    var contentTeph = function(value) {
         var content = "";
+        console.log(value.graphic);
+        var data = value.graphic.attributes;
 
-        if (key === "Project") {
-            content += "<span class='bold' title=''><b> " + data.Project + " </b></span><br>";
-        }
-
-        if (key === "SampleID") {
-            if (data.SampleID) {
-                content += "<span class='bold' title=''><b>&ensp;Sample</b></span><br> <span id='chronID' class='bold' data-lyr='9' data-id='" + data.OBJECTID + "'>&ensp;&ensp;<b>Identification: </b></span>" + data.SampleID + "<br>";
-            }
-        }
-        if (key === "SampleMaterial") {
-            if (data.SampleMaterial) {
-                content += "<span class='bold' title='Sample Material'>&ensp;&ensp;<b>Material: </b></span>" + data.SampleMaterial + "<br>";
-            }
-        }
-        if (key === "ConventionalAge") {
-            if (data.ConventionalAge) {
-                content += "<span class='bold' title='Conventional Age'>&ensp;&ensp;<b>Conventional Age: </b></span>" + data.ConventionalAge.toFixed(2) + " yr (1σ error)<br>";
-            }
+        if (data.project) {
+            content += "<span class='bold' title=''><b> " + data.project + " </b></span><br>";
         }
 
-        if (key === "QualitativeAge") {
-            if (data.QualitativeAge) {
-                content += "<span class='bold' title='Qualitative Age'>&ensp;&ensp;<b>Qualitative Age: </b></span>" + data.QualitativeAge + " yr (1σ error)<br>";
+        if (data.sampleid) {
+            if (data.sampleid) {
+                content += "<span class='bold' title=''><b>&ensp;Sample</b></span><br> <span id='chronID' class='bold' data-lyr='8' data-id='" + data.__esri_wfs_id__ + "'>&ensp;&ensp;<b>Identification: </b></span>" + data.sampleid + "<br>";
+            }
+        }
+        if (data.samplematerial) {
+            if (data.samplematerial) {
+                content += "<span class='bold' title='Sample Material'>&ensp;&ensp;<b>Material: </b></span>" + data.samplematerial + "<br>";
+            }
+        }
+        if (data.age) {
+            if (data.age) {
+                content += "<span class='bold' title='Age'>&ensp;&ensp;<b>Age: </b></span>" + data.age.toFixed(2) + " ± " + data.ageerror + " yr (1σ error)<br>";
             }
         }
 
-        if (key === "AgeAverageModern") {
-            if (data.AgeAverageModern) {
-                content += "<span class='bold' title='Average Modern Age'>&ensp;&ensp;<b>Average Modern Age: </b></span>" + data.AgeAverageModern.toFixed(2) + " ± " + data.AgeAverageError + " yr (1σ error)<br>";
-            }
-        }
-
-        if (key === "LabReportsRS") {
+        if (data.labreportsrs) {
             content += "<span class='bold'><b>Preview All Available Data: </b></span><a id='dataDetail'>Click </a><br>";
-            if (data.LabReportsRS) {
-                content += "<span class='bold' title='Show complete report for " + data.SampleID + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.LabReportsRS + "' target='_blank'>Opens in new tab</a>";
-            } else if (data.LabReportsRS == null) {
+            if (data.labreportsrs) {
+                content += "<span class='bold' title='Show complete report for " + data.sampleid + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.labreportsrs + "' target='_blank'>Opens in new tab</a>";
+            } else if (data.labreportsrs == null) {
                 content += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
             }
         }
-
-        
-        data.Dating_Method;
-        
-
-        addClickHandler(data.OBJECTID, "9");
+        data.dating_method;
+        addClickHandler(data.__esri_wfs_id__, "8");
         return content;
+    };
 
+        
+
+
+    getContentTrit = function(value) {
+    var content = "";
+    console.log(value.graphic);
+    var data = value.graphic.attributes;
+
+    if (data.project) {
+        content += "<span class='bold' title=''><b> " + data.project + " </b></span><br>";
     }
 
+    if (data.sampleid) {
+        if (data.sampleid) {
+            content += "<span class='bold' title=''><b>&ensp;Sample</b></span><br> <span id='chronID' class='bold' data-lyr='9' data-id='" + data.__esri_wfs_id__ + "'>&ensp;&ensp;<b>Identification: </b></span>" + data.sampleid + "<br>";
+        }
+    }
+    if (data.samplematerial) {
+        if (data.samplematerial) {
+            content += "<span class='bold' title='Sample Material'>&ensp;&ensp;<b>Material: </b></span>" + data.samplematerial + "<br>";
+        }
+    }
+    if (data.conventionalage) {
+        if (data.conventionalage) {
+            content += "<span class='bold' title='Conventional Age'>&ensp;&ensp;<b>Conventional Age: </b></span>" + data.conventionalage.toFixed(2) + " yr (1σ error)<br>";
+        }
+    }
 
-    createClickContentCarbon = function(value, key, data) {
+    if (data.qualitativeage) {
+        if (data.qualitativeage) {
+            content += "<span class='bold' title='Qualitative Age'>&ensp;&ensp;<b>Qualitative Age: </b></span>" + data.qualitativeage + " yr (1σ error)<br>";
+        }
+    }
 
+    if (data.ageaveragemodern) {
+        if (data.ageaveragemodern) {
+            content += "<span class='bold' title='Average Modern Age'>&ensp;&ensp;<b>Average Modern Age: </b></span>" + data.ageaveragemodern.toFixed(2) + " ± " + data.ageaverageerror + " yr (1σ error)<br>";
+        }
+    }
+
+    if (data.labreportsrs) {
+        content += "<span class='bold'><b>Preview All Available Data: </b></span><a id='dataDetail'>Click </a><br>";
+        if (data.labreportsrs) {
+            content += "<span class='bold' title='Show complete report for " + data.sampleid + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.labreportsrs + "' target='_blank'>Opens in new tab</a>";
+        } else if (data.labreportsrs == null) {
+            content += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
+        }
+    }
+    data.dating_method;
+
+    addClickHandler(data.__esri_wfs_id__, "9");
+    console.log(content);
+    return content;
+};
+
+    createClickContentCarbon2 = function(value) {
+        console.log(value.graphic);
+        var data = value.graphic.attributes;
+    };
+
+    createClickContentCarbon = function(value) {
         var content = "";
+        console.log(value.graphic);
+        var data = value.graphic.attributes;
 
-        if (key === "Project") {
-            content += "<span class='bold' title=''><b> " + data.Project + " </b></span><br>";
+        if (data.project) {
+            content += "<span class='bold' title=''><b> " + data.project + " </b></span><br>";
         }
 
-        if (key === "SampleID") {
-            if (data.SampleID) {
-                content += "<span class='bold' title=''><b>&ensp;Sample</b></span><br> <span id='chronID' class='bold' data-lyr='2' data-id='" + data.OBJECTID + "'>&ensp;&ensp;<b>Identification: </b></span>" + data.SampleID + "<br>";
+        if (data.sampleid) {
+            if (data.sampleid) {
+                content += "<span class='bold' title=''><b>&ensp;Sample</b></span><br> <span id='chronID' class='bold' data-lyr='2' data-id='" + data.__esri_wfs_id__ + "'>&ensp;&ensp;<b>Identification: </b></span>" + data.sampleid + "<br>";
             }
         }
-        if (key === "SampleMaterial") {
-            if (data.SampleMaterial) {
-                content += "<span class='bold' title='Sample Material'>&ensp;&ensp;<b>Material: </b></span>" + data.SampleMaterial + "<br>";
+        if (data.samplematerial) {
+            if (data.samplematerial) {
+                content += "<span class='bold' title='Sample Material'>&ensp;&ensp;<b>Material: </b></span>" + data.samplematerial + "<br>";
             }
         }
 
-        if (key === "DatingType") {
+        if (data.datingtype) {
             content += "<span class='bold' title=''>&ensp;<b>Results</b></span><br>";
-            if (data.DatingType) {
-                content += "<span class='bold' title='Dating Type'>&ensp;&ensp;<b>Type: </b></span>" + data.DatingType + "<br>";
+            if (data.datingtype) {
+                content += "<span class='bold' title='Dating Type'>&ensp;&ensp;<b>Type: </b></span>" + data.datingtype + "<br>";
             }
         }
-        if (key === "ConventionalAge") {
-            if (data.ConventionalAge) {
-                content += "<span class='bold' title='Conventional Age'>&ensp;&ensp;<b>Conventional Age: </b></span>" + data.ConventionalAge.toFixed(2) + " ± " + data.Conventional1Sigma + " yr (1σ error)<br>";
+        if (data.conventionalage) {
+            if (data.conventionalage) {
+                content += "<span class='bold' title='Conventional Age'>&ensp;&ensp;<b>Conventional Age: </b></span>" + data.conventionalage.toFixed(2) + " ± " + data.conventional1sigma + " yr (1σ error)<br>";
             }
         }
 
-        if (key === "CalibratedAge1A") {
-            if (data.CalibratedAge1A != null && data.CalibratedAge1B != null && data.CalibratedAge1Unit != null && data.CalibratedAge1Sigma != null) {
-                content += "<span class='bold' title='Calibrated Age'>&ensp;&ensp;<b>Calibrated Age: </b></span>" + data.CalibratedAge1A + " - " + data.CalibratedAge1B + " " + data.CalibratedAge1Unit + " *See detailed report for explanation" /*", " + data.CalibratedAge1Sigma */ + "<br>"
-            } else if (data.CalibratedAge1A == null && data.CalibratedAge1B != null && data.CalibratedAge1Unit != null && data.CalibratedAge1Sigma != null) {
-                content += "<span class='bold' title='Calibrated Age'>&ensp;&ensp;<b>Calibrated Age: </b></span>" + "" + " - " + data.CalibratedAge1B + " " + data.CalibratedAge1Unit + " *See detailed report for explanation" /*", " + data.CalibratedAge1Sigma */ + "<br>"
-            } else if (data.CalibratedAge1A != null && data.CalibratedAge1B == null && data.CalibratedAge1Unit != null && data.CalibratedAge1Sigma != null) {
-                content += "<span class='bold' title='Calibrated Age'>&ensp;&ensp;<b>Calibrated Age: </b></span>" + data.CalibratedAge1A + " - " + " " + data.CalibratedAge1Unit + " *See detailed report for explanation" /*", " + data.CalibratedAge1Sigma */ + "<br>"
-            } else if (data.CalibratedAge1A != null && data.CalibratedAge1B != null && data.CalibratedAge1Unit == null && data.CalibratedAge1Sigma != null) {
-                content += "<span class='bold' title='Calibrated Age'>&ensp;&ensp;<b>Calibrated Age: </b></span>" + data.CalibratedAge1A + " - " + data.CalibratedAge1B + "" + " *See detailed report for explanation" /*", " + data.CalibratedAge1Sigma */ + "<br>"
-            } else if (data.CalibratedAge1A != null && data.CalibratedAge1B != null && data.CalibratedAge1Unit != null && data.CalibratedAge1Sigma == null) {
-                content += "<span class='bold' title='Calibrated Age'>&ensp;&ensp;<b>Calibrated Age: </b></span>" + data.CalibratedAge1A + " - " + data.CalibratedAge1B + " " + data.CalibratedAge1Unit + " *See detailed report for explanation" /*", " + data.CalibratedAge1Sigma */ + "<br>"
+        if (data.calibratedage1a) {
+            if (data.calibratedage1a != null && data.calibratedage1b != null && data.calibratedage1unit != null && data.calibratedage1sigma != null) {
+                content += "<span class='bold' title='Calibrated Age'>&ensp;&ensp;<b>Calibrated Age: </b></span>" + data.calibratedage1a + " - " + data.calibratedage1b + " " + data.calibratedage1unit + " *See detailed report for explanation" + "<br>";
+            } else if (data.calibratedage1a == null && data.calibratedage1b != null && data.calibratedage1unit != null && data.calibratedage1sigma != null) {
+                content += "<span class='bold' title='Calibrated Age'>&ensp;&ensp;<b>Calibrated Age: </b></span>" + "" + " - " + data.calibratedage1b + " " + data.calibratedage1unit + " *See detailed report for explanation" + "<br>";
+            } else if (data.calibratedage1a != null && data.calibratedage1b == null && data.calibratedage1unit != null && data.calibratedage1sigma != null) {
+                content += "<span class='bold' title='Calibrated Age'>&ensp;&ensp;<b>Calibrated Age: </b></span>" + data.calibratedage1a + " - " + " " + data.calibratedage1unit + " *See detailed report for explanation" + "<br>";
+            } else if (data.calibratedage1a != null && data.calibratedage1b != null && data.calibratedage1unit == null && data.calibratedage1sigma != null) {
+                content += "<span class='bold' title='Calibrated Age'>&ensp;&ensp;<b>Calibrated Age: </b></span>" + data.calibratedage1a + " - " + data.calibratedage1b + " *See detailed report for explanation" + "<br>";
+            } else if (data.calibratedage1a != null && data.calibratedage1b != null && data.calibratedage1unit != null && data.calibratedage1sigma == null) {
+                content += "<span class='bold' title='Calibrated Age'>&ensp;&ensp;<b>Calibrated Age: </b></span>" + data.calibratedage1a + " - " + data.calibratedage1b + " " + data.calibratedage1unit + " *See detailed report for explanation" + "<br>";
             }
-
         }
-        if (key === "LabReportsRS") {
+        if (data.labreportsrs) {
             content += "<span class='bold'><b>Preview All Available Data: </b></span><a id='dataDetail'>Click </a><br>";
-            if (data.LabReportsRS) {
-                content += "<span class='bold' title='Show complete report for " + data.SampleID + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.LabReportsRS + "' target='_blank'>Opens in new tab</a>";
-            } else if (data.LabReportsRS == null) {
+            if (data.labreportsrs) {
+                content += "<span class='bold' title='Show complete report for " + data.sampleid + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.labreportsrs + "' target='_blank'>Opens in new tab</a>";
+            } else if (data.labreportsrs == null) {
                 content += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
             }
         }
+        data.dating_method;
 
-         data.Dating_Method;
-        
-
-        addClickHandler(data.OBJECTID, "2");
+        addClickHandler(data.__esri_wfs_id__, "2");
         return content;
-    }
+    };
+
 
     //Luminesence PopupTemplate function
 
-    createClickContentLum = function(value, key, data) {
-
+    createClickContentLum = function(value) {
         var contentLum = "";
+        console.log(value.graphic);
+        var data = value.graphic.attributes;
 
-        if (key === "Project") {
-            contentLum += "<span class='bold' title=''></span><b>" + data.Project + "</b><br>";
+        if (data.project) {
+            contentLum += "<span class='bold' title=''></span><b>" + data.project + "</b><br>";
         }
-        if (key === "SampleID") {
+        if (data.sampleid) {
             contentLum += "<span class='bold' title=''>&ensp; <b>Sample</b></span><br>";
 
-            if (data.SampleID) {
-                contentLum += "<span id='chronID' class='bold' data-lyr='1' data-id='" + data.OBJECTID + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.SampleID + "<br>";
+            if (data.sampleid) {
+                contentLum += "<span id='chronID' class='bold' data-lyr='1' data-id='" + data.__esri_wfs_id__ + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.sampleid + "<br>";
             }
         }
-        if (key === "DatingType") {
+        if (data.datingtype) {
             contentLum += "<span class='bold' title=''>&ensp; <b>Results</b></span><br>";
 
-            if (data.DatingType) {
-                contentLum += "<span class='bold' title='Dating Type'>&ensp;&ensp;<b> Type: </b></span>" + data.DatingType + "<br>";
+            if (data.datingtype) {
+                contentLum += "<span class='bold' title='Dating Type'>&ensp;&ensp;<b> Type: </b></span>" + data.datingtype + "<br>";
             }
         }
-        if (key === "Age") {
-            if (data.Age) {
-                contentLum += "<span class='bold' title='Conventional Age'>&ensp;&ensp; <b>Age: </b></span>" + data.Age.toFixed(2) + " ± " + data.AgeRange.toFixed(2) + " yr (1σ error)<br>";
+        if (data.age) {
+            if (data.age) {
+                contentLum += "<span class='bold' title='Conventional Age'>&ensp;&ensp; <b>Age: </b></span>" + data.age.toFixed(2) + " ± " + data.agerange.toFixed(2) + " yr (1σ error)<br>";
             }
         }
 
-        if (key === "LabReportRS") {
+        if (data.labreportrs) {
             contentLum += "<span class='bold'><b>Preview All Available Data: </b></span><a id='dataDetail'>Click </a><br>";
-            if (data.LabReportRS) {
-                contentLum += "<span class='bold' title='Show complete report for " + data.SampleID + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.LabReportRS + "' target='_blank'>Opens in new tab</a>";
-            } else if (data.LabReportRS == null) {
+            if (data.labreportrs) {
+                contentLum += "<span class='bold' title='Show complete report for " + data.sampleid + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.labreportrs + "' target='_blank'>Opens in new tab</a>";
+            } else if (data.labreportrs == null) {
                 contentLum += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
             }
         }
 
+        data.dating_method;
 
-         data.Dating_Method;
-        
-
-        addClickHandler(data.OBJECTID, "1");
+        addClickHandler(data.__esri_wfs_id__, "1");
         return contentLum;
-
-    }
+    };
 
     createClickContentAr = function(value, key, data) {
         var contentAr = "";
+        console.log(value.graphic);
+        var data = value.graphic.attributes;
 
-        if (key === "Project") {
-            contentAr += "<span class='bold' title=''></span><b>" + data.Project + "</b><br>";
+        if (data.project) {
+            contentAr += "<span class='bold' title=''></span><b>" + data.project + "</b><br>";
         }
-        if (key === "SampleID") {
+        if (data.sampleid) {
             contentAr += "<span class='bold' title=''>&ensp; <b>Sample</b></span><br>";
 
-            if (data.SampleID) {
-                contentAr += "<span id='chronID' class='bold' data-lyr='3' data-id='" + data.OBJECTID + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.SampleID + "<br>";
+            if (data.sampleid) {
+                contentAr += "<span id='chronID' class='bold' data-lyr='3' data-id='" + data.__esri_wfs_id__ + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.sampleid + "<br>";
             }
         }
-        if (key === "SampleMaterial") {
-            if (data.SampleMaterial) {
-                contentAr += "<span class='bold' title='Sample Material'>&ensp;&ensp; <b>Material: </b></span>" + data.SampleMaterial + "<br>";
+        if (data.samplematerial) {
+            if (data.samplematerial) {
+                contentAr += "<span class='bold' title='Sample Material'>&ensp;&ensp; <b>Material: </b></span>" + data.samplematerial + "<br>";
             }
         }
-        if (key === "Age") {
-            if (data.Age) {
-                contentAr += "<span class='bold' title='Conventional Age'>&ensp;&ensp; <b>Age: </b></span>" + data.Age.toFixed(2) + " ± " + data.AgeRange.toFixed(2) + " yr (1σ error)<br>";
+        if (data.age) {
+            if (data.age) {
+                contentAr += "<span class='bold' title='Conventional Age'>&ensp;&ensp; <b>Age: </b></span>" + data.age.toFixed(2) + " ± " + data.agerange.toFixed(2) + " yr (1σ error)<br>";
             }
         }
 
-        if (key === "LabReportRS") {
+        if (data.labreportrs) {
             contentAr += "<span class='bold'><b>Preview All Available Data: </b></span><a id='dataDetail'>Click </a><br>";
-            if (data.LabReportRS) {
-                contentAr += "<span class='bold' title='Show complete report for " + data.SampleID + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.LabReportRS + "' target='_blank'>Opens in new tab</a>";
-            } else if (data.LabReportRS == null) {
+            if (data.labreportrs) {
+                contentAr += "<span class='bold' title='Show complete report for " + data.sampleid + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.labreportrs + "' target='_blank'>Opens in new tab</a>";
+            } else if (data.labreportrs == null) {
                 contentAr += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
             }
         }
 
+        data.dating_method;
 
-         data.Dating_Method;
-        
-
-
-        addClickHandler(data.OBJECTID, "3");
+        addClickHandler(data.__esri_wfs_id__, "3");
         return contentAr;
+    };
 
-    }
 
-    createClickContentThor = function(value, key, data) {
+    createClickContentThor = function(value) {
         var contentThor = "";
+        console.log(value.graphic);
+        var data = value.graphic.attributes;
 
-        if (key === "Project") {
-            contentThor += "<span class='bold' title=''></span><b>" + data.Project + "</b><br>";
+        if (data.project) {
+            contentThor += "<span class='bold' title=''></span><b>" + data.project + "</b><br>";
         }
-        if (key === "SampleID") {
+        if (data.sampleid) {
             contentThor += "<span class='bold' title=''>&ensp; <b>Sample</b></span><br>";
 
-            if (data.SampleID) {
-                contentThor += "<span id='chronID' class='bold' data-lyr='4' data-id='" + data.OBJECTID + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.SampleID + "<br>";
+            if (data.sampleid) {
+                contentThor += "<span id='chronID' class='bold' data-lyr='4' data-id='" + data.__esri_wfs_id__ + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.sampleid + "<br>";
             }
         }
-        if (key === "SampleMaterial") {
-            if (data.SampleMaterial) {
-                contentThor += "<span class='bold' title='Sample Material'>&ensp;&ensp; <b>Material: </b></span>" + data.SampleMaterial + "<br>";
+        if (data.samplematerial) {
+            if (data.samplematerial) {
+                contentThor += "<span class='bold' title='Sample Material'>&ensp;&ensp; <b>Material: </b></span>" + data.samplematerial + "<br>";
             }
         }
 
-        if (key === "LabReportRS") {
+        if (data.labreportrs) {
             contentThor += "<span class='bold'><b>Preview All Available Data: </b></span><a id='dataDetail'>Click </a><br>";
-            if (data.LabReportRS) {
-                contentThor += "<span class='bold' title='Show complete report for " + data.SampleID + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.LabReportRS + "' target='_blank'>Opens in new tab</a>";
-            } else if (data.LabReportRS == null) {
+            if (data.labreportrs) {
+                contentThor += "<span class='bold' title='Show complete report for " + data.sampleid + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.labreportrs + "' target='_blank'>Opens in new tab</a>";
+            } else if (data.labreportrs == null) {
                 contentThor += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
             }
         }
 
-
-          data.Dating_Method;
-        
-
-        addClickHandler(data.OBJECTID, "4");
+        data.dating_method;
+        addClickHandler(data.__esri_wfs_id__, "4");
         return contentThor;
+    };
 
-    }
-
-    createClickContentRhu = function(value, key, data) {
+    createClickContentRhu = function(value) {
         var contentRhu = "";
+        console.log(value.graphic);
+        var data = value.graphic.attributes;
 
-        if (key === "Project") {
-            contentRhu += "<span class='bold' title=''></span><b>" + data.Project + "</b><br>";
+        if (data.project) {
+            contentRhu += "<span class='bold' title=''></span><b>" + data.project + "</b><br>";
         }
-        if (key === "SampleID") {
+        if (data.sampleid) {
             contentRhu += "<span class='bold' title=''>&ensp; <b>Sample</b></span><br>";
 
-            if (data.SampleID) {
-                contentRhu += "<span id='chronID' class='bold' data-lyr='5' data-id='" + data.OBJECTID + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.SampleID + "<br>";
+            if (data.sampleid) {
+                contentRhu += "<span id='chronID' class='bold' data-lyr='5' data-id='" + data.__esri_wfs_id__ + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.sampleid + "<br>";
             }
         }
-        if (key === "SampleMaterial") {
-            if (data.SampleMaterial) {
-                contentRhu += "<span class='bold' title='Sample Material'>&ensp;&ensp; <b>Material: </b></span>" + data.SampleMaterial + "<br>";
+        if (data.samplematerial) {
+            if (data.samplematerial) {
+                contentRhu += "<span class='bold' title='Sample Material'>&ensp;&ensp; <b>Material: </b></span>" + data.samplematerial + "<br>";
             }
         }
-        if (key === "Age") {
-            if (data.Age) {
-                contentRhu += "<span class='bold' title='Conventional Age'>&ensp;&ensp; <b>Age: </b></span>" + data.Age + " yr <br>";
+        if (data.age) {
+            if (data.age) {
+                contentRhu += "<span class='bold' title='Conventional Age'>&ensp;&ensp; <b>Age: </b></span>" + data.age + " yr <br>";
             }
         }
 
-        if (key === "LabReportRS") {
+        if (data.labreportrs) {
             contentRhu += "<span class='bold'><b>Preview All Available Data: </b></span><a id='dataDetail'>Click </a><br>";
-            if (data.LabReportRS) {
-                contentRhu += "<span class='bold' title='Show complete report for " + data.SampleID + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.LabReportRS + "' target='_blank'>Opens in new tab</a>";
-            } else if (data.LabReportRS == null) {
+            if (data.labreportrs) {
+                contentRhu += "<span class='bold' title='Show complete report for " + data.sampleid + "'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.labreportrs + "' target='_blank'>Opens in new tab</a>";
+            } else if (data.labreportrs == null) {
                 contentRhu += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
             }
         }
 
-          data.Dating_Method;
-        
-
-        addClickHandler(data.OBJECTID, "5");
+        data.dating_method;
+        addClickHandler(data.__esri_wfs_id__, "5");
         return contentRhu;
+    };
 
-    }
-
-    createClickContentFis = function(value, key, data) {
+    createClickContentFis = function(value) {
         var contentFis = "";
-        if (key === "Project") {
-            contentFis += "<span class='bold' title=''></span><b>" + data.Project + "</b><br>";
+        var data = value.graphic.attributes;
+
+        if (data.project) {
+            contentFis += "<span class='bold' title=''></span><b>" + data.project + "</b><br>";
         }
-        if (key === "SampleID") {
+        if (data.sampleid) {
             contentFis += "<span class='bold' title=''>&ensp; <b>Sample</b></span><br>";
-            if (data.SampleID) {
-                contentFis += "<span id='chronID' class='bold' data-lyr='6' data-id='" + data.OBJECTID + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.SampleID + "<br>";
+            if (data.sampleid) {
+                contentFis += "<span id='chronID' class='bold' data-lyr='6' data-id='" + data.__esri_wfs_id__ + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.sampleid + "<br>";
             }
         }
-        if (key === "SampleMaterial") {
-            if (data.SampleMaterial) {
-                contentFis += "<span class='bold' title='Sample Material'>&ensp;&ensp; <b>Material: </b></span>" + data.SampleMaterial + "<br>";
+        if (data.samplematerial) {
+            if (data.samplematerial) {
+                contentFis += "<span class='bold' title='Sample Material'>&ensp;&ensp; <b>Material: </b></span>" + data.samplematerial + "<br>";
             }
         }
-        if (key === "Age") {
-            if (data.Age) {
-                contentFis += "<span class='bold' title='Conventional Age'>&ensp;&ensp; <b>Age: </b></span>" + data.Age.toFixed(2) + " yr <br>";
+        if (data.age) {
+            if (data.age) {
+                contentFis += "<span class='bold' title='Conventional Age'>&ensp;&ensp; <b>Age: </b></span>" + data.age.toFixed(2) + " yr <br>";
             }
         }
-        if (key === "LabReportRS") {
+        if (data.labreportrs) {
             contentFis += "<span class='bold'><b>Preview All Available Data: </b></span><a id='dataDetail'>Click</a><br>";
-            if (data.LabReportRS) {
-                contentFis += "<span class='bold'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.LabReportRS + "' target='_blank'>Opens in new tab</a>";
-            } else if (data.LabReportRS == null) {
+            if (data.labreportrs) {
+                contentFis += "<span class='bold'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.labreportrs + "' target='_blank'>Opens in new tab</a>";
+            } else if (data.labreportrs == null) {
                 contentFis += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
             }
         }
- 
-        data.Dating_Method;
 
-        addClickHandler(data.OBJECTID, "6");
+        data.dating_method;
+        addClickHandler(data.__esri_wfs_id__, "6");
         return contentFis;
+    };
 
-    }
-
-    createClickContentCos = function(value, key, data) {
+    createClickContentCos = function(value) {
         var contentCos = "";
+        var data = value.graphic.attributes;
 
-
-        if (key === "Project") {
-            contentCos += "<span class='bold' title=''></span><b>" + data.Project + "</b><br>";
+        if (data.project) {
+            contentCos += "<span class='bold' title=''></span><b>" + data.project + "</b><br>";
         }
-        if (key === "SampleID") {
+        if (data.sampleid) {
             contentCos += "<span class='bold' title=''>&ensp; <b>Sample</b></span><br>";
-            if (data.SampleID) {
-                contentCos += "<span id='chronID' class='bold' data-lyr='7' data-id='" + data.OBJECTID + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.SampleID + "<br>";
+            if (data.sampleid) {
+                contentCos += "<span id='chronID' class='bold' data-lyr='7' data-id='" + data.__esri_wfs_id__ + "'>&ensp;&ensp; <b>Identification: </b></span>" + data.sampleid + "<br>";
             }
         }
-        if (key === "SampleMaterial") {
-            if (data.SampleMaterial) {
-                contentCos += "<span class='bold' title='Sample Material'>&ensp;&ensp; <b>Material: </b></span>" + data.SampleMaterial + "<br>";
+        if (data.samplematerial) {
+            if (data.samplematerial) {
+                contentCos += "<span class='bold' title='Sample Material'>&ensp;&ensp; <b>Material: </b></span>" + data.samplematerial + "<br>";
             }
         }
-        if (key === "ExposureAge") {
-            if (data.ExposureAge) {
-                contentCos += "<span class='bold' title='Conventional Age'>&ensp;&ensp; <b>Age: </b></span>" + data.ExposureAge.toFixed(2) + " yr <br>";
+        if (data.exposureage) {
+            if (data.exposureage) {
+                contentCos += "<span class='bold' title='Conventional Age'>&ensp;&ensp; <b>Age: </b></span>" + data.exposureage.toFixed(2) + " yr <br>";
             }
         }
-        if (key === "LabReportRS") {
+        if (data.labreportrs) {
             contentCos += "<span class='bold'><b>Preview All Available Data: </b></span><a id='dataDetail'>Click</a><br>";
-            if (data.LabReportRS) {
-                contentFis += "<span class='bold'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.LabReportRS + "' target='_blank'>Opens in new tab</a>";
-            } else if (data.LabReportRS == null) {
+            if (data.labreportrs) {
+                contentCos += "<span class='bold'><b>Detailed Report: </b></span>" + "<a href='" + "https://geodata.geology.utah.gov/pages/view.php?ref=" + data.labreportrs + "' target='_blank'>Opens in new tab</a>";
+            } else if (data.labreportrs == null) {
                 contentCos += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
             }
         }
 
-
-         data.Dating_Method;
-    
-
-        addClickHandler(data.OBJECTID, "7");
+        data.dating_method;
+        addClickHandler(data.__esri_wfs_id__, "7");
         return contentCos;
+    };
 
-    }
-
-    createClickContentProject = function(value, key, data) {
+    createClickContentProject = function(value) {
         var contentPro = "";
+        var data = value.graphic.attributes;
 
-        if (key === "Project_ID") {
+        if (data.project_id) {
             contentPro += "<span class='bold' title='Project Type'><strong>Project</strong></span><br>";
 
-            if (data.Project_ID) {
-                contentPro += "<span id='chronID' class='bold' data-lyr='0' data-id='" + data.OBJECTID + "'>&ensp; <strong>Identification Code: </strong></span>" + data.Project_ID + "<br>";
+            if (data.project_id) {
+                contentPro += "<span id='chronID' class='bold' data-lyr='0' data-id='" + data.__esri_wfs_id__ + "'>&ensp; <strong>Identification Code: </strong></span>" + data.project_id + "<br>";
             }
         }
 
-        if (key === "Publication_URL") {
-            if (data.Publication_URL) {
-                contentPro += "<span class='bold' title='Type'>&ensp; <strong>Type: </strong></span><a class='dataDetail' target='_blank' href='" + data.Publication_URL + "'>" + data.ProjectType + "</a><br>";
+        if (data.publication_url) {
+            if (data.publication_url) {
+                contentPro += "<span class='bold' title='Type'>&ensp; <strong>Type: </strong></span><a class='dataDetail' target='_blank' href='" + data.publication_url + "'>" + data.projecttype + "</a><br>";
             } else {
-                contentPro += "<span class='bold' title='Type'>&ensp; <strong>Type: </strong></span>" + data.ProjectType + "<br>";
+                contentPro += "<span class='bold' title='Type'>&ensp; <strong>Type: </strong></span>" + data.projecttype + "<br>";
             }
         }
-        if (key === "ProjectLocation") {
-            if (data.ProjectLocation) {
-                contentPro += "<span class='bold' title='Project Location'>&ensp; <strong>Location: </strong></span>" + data.ProjectLocation + "<br>";
+        if (data.projectlocation) {
+            if (data.projectlocation) {
+                contentPro += "<span class='bold' title='Project Location'>&ensp; <strong>Location: </strong></span>" + data.projectlocation + "<br>";
             }
         }
-        if (key === "OrgURL") {
+        if (data.orgurl) {
             contentPro += "<span class='bold'><strong>View Project and Organization Details: </strong></span><a id='dataDetail'>Click</a>";
-            if (data.OrgURL) {
-                contentPro += "<br><span class='bold' title='Organization'><strong>Organization: </strong></span><br>&ensp; <a class='dataDetail' target='_blank' href='" + data.OrgURL + "'>" + data.OrgName + "</a><br>";
+            if (data.orgurl) {
+                contentPro += "<br><span class='bold' title='Organization'><strong>Organization: </strong></span><br>&ensp; <a class='dataDetail' target='_blank' href='" + data.orgurl + "'>" + data.orgname + "</a><br>";
             } else {
-                contentPro += "<br><span class='bold' title='Organization'><strong>Organization: </strong></span><br>&ensp; " + data.OrgName + "<br>";
+                contentPro += "<br><span class='bold' title='Organization'><strong>Organization: </strong></span><br>&ensp; " + data.orgname + "<br>";
             }
-
-           
         }
 
-        addClickHandler(data.OBJECTID, "0");
-        console.log(data.OBJECTID);
+        addClickHandler(data.__esri_wfs_id__, "0");
+        console.log(data.__esri_wfs_id__);
         return contentPro;
+    };
 
-    }
 
 
 
@@ -1071,6 +1026,9 @@ app.activeView.map.add(flf);  // adds the layer to the map
 
     //add featurelayers
 
+
+
+    /*
     const tritium = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/9",
         outFields: ["*"],
@@ -1086,8 +1044,37 @@ app.activeView.map.add(flf);  // adds the layer to the map
         }
 
     });
+    */
+    const tritium = new WFSLayer({
+        url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
+		name: "tritium",
+		outFields: ["*"],
+        popupTemplate: {
+            title: "Tritium Dating Result Summary",
+            //content: "{Project:contentTrit}{SampleID:contentTrit}{OBJECTID:contentTrit}{DatingType:contentTrit}{ConventionalAge:contentTrit}{QualitativeAge:contentTrit}{AgeAverageModern:contentTrit}{AgeAverageError:contentTrit}{LabReportRS:contentTrit}"
+            content: getContentTrit
+        },
+        popupEnabled: true,
+        displayField: "Project", // see FeatureLayerSource API Reference
+        title: "Tritium Samples",
+        renderer: {
+            type: "simple",
+                symbol: new SimpleMarkerSymbol({
+                color: "brown", //[255, 255, 255],
+                outline: {
+                    color: [0, 0, 0],
+                    width: 1.0
+                },
+                size: "10px"
+            }),
+        }
+	});
+	//app.activeView.map.add(tritium);
+    
+   //tritium brown, tephrochron green, cosmogenic lightgreen, fission blue, uranium grey, rubidium yellow, argon purple.
+   //radiocarbon & project areas, tan with grey outline
 
-
+    /*
     const tephro = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/8",
         outFields: ["*"],
@@ -1104,7 +1091,34 @@ app.activeView.map.add(flf);  // adds the layer to the map
         }
 
     });
+    */
+    const tephro = new WFSLayer({
+        url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
+		name: "tephrochronology",
+		outFields: ["*"],
+        popupTemplate: {
+            title:  "Tephrochronology Sample and Dating Details",
+            content: contentTeph
+            //content: "{Project:contentTeph}{SampleID:contentTeph}{OBJECTID:contentTeph}{SampleMaterial:contentTeph}{DatingType:contentTeph}{Age:contentTeph}{AgeError:contentTeph}{LabReportsRS:contentTeph}"
+        },
+        popupEnabled: true,
+        displayField: "Project", // see FeatureLayerSource API Reference
+        title: "Tephrochronology Samples",
+        renderer: {
+            type: "simple",
+                symbol: new SimpleMarkerSymbol({
+                color: "green", 
+                outline: {
+                    color: [0, 0, 0],
+                    width: 1.0
+                },
+                size: "10px"
+            }),
+        }
+	});
+	//app.activeView.map.add(tephro);
 
+   /*
     const carbon = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/2",
         outFields: ["*"],
@@ -1118,10 +1132,48 @@ app.activeView.map.add(flf);  // adds the layer to the map
         title: "Radiocarbon Samples",
         elevationInfo: {
             mode: "relative-to-ground",
-        }
+        },
+        renderer: {
+			type: "simple",
+			symbol: {
+				type: "simple-fill",
+				color: [255, 176, 0, 0.5],
+				outline: {
+					color: [115, 76, 0, 0.5],
+					width: 1
+				}
+			}
+		}
 
     });
-
+    */
+    const carbon = new WFSLayer({
+        url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
+		name: "radiocarbon",
+		outFields: ["*"],
+        popupTemplate: {
+            title:  "Radiocarbon (<sup>14</sup>C) Sample and Dating Details",
+            content: createClickContentCarbon
+            //content: "{Project:createClickContentCarbon}{SampleID:createClickContentCarbon}{OBJECTID:createClickContentCarbon}{SampleMaterial:createClickContentCarbon}{DatingType:createClickContentCarbon}{ConventionalAge:createClickContentCarbon}{CalibratedAge1A:createClickContentCarbon}{CalibratedAge1B:createClickContentCarbon}{CalibratedAge1Sigma:createClickContentCarbon}{CalibratedAge1Unit:createClickContentCarbon}{LabReportsRS:createClickContentCarbon}"
+        },
+        popupEnabled: true,
+        displayField: "Project", // see FeatureLayerSource API Reference
+        title: "Radiocarbon Samples",
+        renderer: {
+            type: "simple",
+                symbol: new SimpleMarkerSymbol({
+                color: [255, 176, 0, 0.5], 
+                outline: {
+                    color: [0, 0, 0],
+                    width: 1.0
+                },
+                size: "10px"
+            }),
+        }
+	});
+	//app.activeView.map.add(carbon);
+   
+    /*
     const argon = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/3",
         outFields: ["*"],
@@ -1153,7 +1205,33 @@ app.activeView.map.add(flf);  // adds the layer to the map
             mode: "relative-to-ground",
         }
     });
+    */
+    const argon = new WFSLayer({
+        url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
+		name: "argon",
+		outFields: ["*"],  //["Project", "SampleBy", "SampleID", "LabSampleID", "SampleMaterial"]
+        popupTemplate: {
+            title:  "Argon (<sup>39</sup>Ar/<sup>40</sup>Ar) Dating Result Summary",
+            content: createClickContentAr
+            //content: "{project:createClickContentAr}{sampleid:createClickContentAr}{sampleid:createClickContentAr}{samplematerial:createClickContentAr}{age:createClickContentAr}{agerange:createClickContentAr}{labreportrs:createClickContentAr}"
+        },
+        popupEnabled: true,
+        displayField: "Project", // see FeatureLayerSource API Reference
+        title: "Argon Samples",
+        renderer: {
+            type: "simple",
+                symbol: new SimpleMarkerSymbol({
+                color: "purple", 
+                outline: {
+                    color: [0, 0, 0],
+                    width: 1.0
+                },
+                size: "10px"
+            }),
+        }
+	});
 
+    /*
     const luminescence = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/1",
         outFields: ["*"],
@@ -1175,7 +1253,33 @@ app.activeView.map.add(flf);  // adds the layer to the map
         }
 
     });
+    */
+    const luminescence = new WFSLayer({
+        url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
+		name: "luminescence",
+		outFields: ["*"],  //["Project", "SampleBy", "SampleID", "LabSampleID", "SampleMaterial"]
+        popupTemplate: {
+            title: "Luminescence Dating Result Summary",
+            content: createClickContentLum
+            //content: "{Project:createClickContentLum}{SampleID:createClickContentLum}{OBJECTID:createClickContentLum}{DatingType:createClickContentLum}{Age:createClickContentLum}{AgeRange:createClickContentLum}{LabReportRS:createClickContentLum}"
+        },
+        popupEnabled: true,
+        displayField: "Project", // see FeatureLayerSource API Reference
+        title: "Luminescence Samples",
+        renderer: {
+            type: "simple",
+                symbol: new SimpleMarkerSymbol({
+                color: "cyan", 
+                outline: {
+                    color: [0, 0, 0],
+                    width: 1.0
+                },
+                size: "10px"
+            }),
+        }
+	});
 
+    /*
     const uranium = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/4",
         outFields: ["*"],
@@ -1197,7 +1301,32 @@ app.activeView.map.add(flf);  // adds the layer to the map
         }
 
     });
-
+    */
+    const uranium = new WFSLayer({
+        url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
+		name: "uranium_thorium_lead",
+		outFields: ["*"],  
+        popupTemplate: {
+            title: "Uranium-Thorium-Lead Dating Result Summary",
+            content: createClickContentThor
+            //content: "{Project:createClickContentThor}{SampleID:createClickContentThor}{OBJECTID:createClickContentThor}{SampleMaterial:createClickContentThor}{Age:createClickContentThor}{AgeRange:createClickContentThor}{LabReportRS:createClickContentThor}"
+        },
+        popupEnabled: true,
+        displayField: "Project", // see FeatureLayerSource API Reference
+        title: "Uranium-Thorium-Lead Samples",
+        renderer: {
+            type: "simple",
+                symbol: new SimpleMarkerSymbol({
+                color: "grey", 
+                outline: {
+                    color: [0, 0, 0],
+                    width: 1.0
+                },
+                size: "10px"
+            }),
+        }
+	});
+    /*
     const rubidium = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/5",
         outFields: ["*"],
@@ -1219,7 +1348,32 @@ app.activeView.map.add(flf);  // adds the layer to the map
         }
 
     });
-
+    */
+    const rubidium = new WFSLayer({
+        url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
+		name: "rubidium_strontium",
+		outFields: ["*"],  
+        popupTemplate: {
+            title: "Rubidium-Strontium Dating Result Summary",
+            content: createClickContentRhu
+            //content: "{Project:createClickContentRhu}{SampleID:createClickContentRhu}{OBJECTID:createClickContentRhu}{SampleMaterial:createClickContentRhu}{Age:createClickContentRhu}{AgeRange:createClickContentRhu}{LabReportRS:createClickContentRhu}"
+        },
+        popupEnabled: true,
+        displayField: "Project", // see FeatureLayerSource API Reference
+        title: "Rubidium-Strontium Samples",
+        renderer: {
+            type: "simple",
+                symbol: new SimpleMarkerSymbol({
+                color: "yellow", 
+                outline: {
+                    color: [0, 0, 0],
+                    width: 1.0
+                },
+                size: "10px"
+            }),
+        }
+	});
+    /*
     const fission = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/6",
         outFields: ["*"],
@@ -1241,8 +1395,33 @@ app.activeView.map.add(flf);  // adds the layer to the map
         }
 
     });
+    */
+    const fission = new WFSLayer({
+        url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
+		name: "fission_track",
+		outFields: ["*"],  
+        popupTemplate: {
+            title: "Fission Track Dating Result Summary",
+            content: createClickContentFis
+            //content: "{Project:createClickContentFis}{SampleID:createClickContentFis}{OBJECTID:createClickContentFis}{SampleMaterial:createClickContentFis}{Age:createClickContentFis}{LabReportRS:createClickContentFis}"
+        },
+        popupEnabled: true,
+        displayField: "Project", // see FeatureLayerSource API Reference
+        title: "Fission Track Samples",
+        renderer: {
+            type: "simple",
+                symbol: new SimpleMarkerSymbol({
+                color: "blue", 
+                outline: {
+                    color: [0, 0, 0],
+                    width: 1.0
+                },
+                size: "10px"
+            }),
+        }
+	});
 
-
+    /*
     const cosmo = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/7",
         outFields: ["*"],
@@ -1263,6 +1442,31 @@ app.activeView.map.add(flf);  // adds the layer to the map
             mode: "relative-to-ground",
         }
     });
+    */
+    const cosmo = new WFSLayer({
+        url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
+		name: "cosmogenic",
+		outFields: ["*"],  
+        popupTemplate: {
+            title: "Cosmogenic Dating Result Summary",
+            content: createClickContentCos
+            //content: "{Project:createClickContentCos}{SampleID:createClickContentCos}{OBJECTID:createClickContentCos}{SampleMaterial:createClickContentCos}{ExposureAge:createClickContentCos}{LabReportRS:createClickContentCos}"
+        },
+        popupEnabled: true,
+        displayField: "Project", // see FeatureLayerSource API Reference
+        title: "Cosmogenic Samples",
+        renderer: {
+            type: "simple",
+                symbol: new SimpleMarkerSymbol({
+                color: "lightgreen", 
+                outline: {
+                    color: [0, 0, 0],
+                    width: 1.0
+                },
+                size: "10px"
+            }),
+        }
+	});
 
     const projects = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/0",
@@ -1545,9 +1749,8 @@ app.activeView.map.add(flf);  // adds the layer to the map
                 });
             });
 
-
-// put our attributes in an object the datagrid can ingest.
-var srch = {
+            // put our attributes in an object the datagrid can ingest.
+            var srch = {
                     "items": []
                 };
                 
@@ -1669,8 +1872,37 @@ watchUtils.when(app.activeView.popup, "visible", function(){
         } // end if
     }
 
-    // use a querytask to get all available details from server
+    //
     function populateDetailsPanel(layer, id) {
+        console.log("fetching data from server");
+        /*
+        fetch('https://ugs-koop-734948684426.us-west3.run.app/ugs_ngwmn_lithology?' + new URLSearchParams({
+            select: 'minfrom:lithologydepthfrom.min(),maxto:lithologydepthto.max(),maxunit:lithologydepthfromunit.max()',
+            siteno: `in.(${locIDs})`,
+            order: 'siteno'
+        }), {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(handleLithResults)
+        .catch(error => {
+            console.error('Error fetching lithology data:', error);
+        });
+        */
+
+    }; // end function
+
+
+    // use a querytask to get all available details from server
+    function populateDetailsPanel_old(layer, id) {
         //console.log("starting query task. id:"+id+", "+layer);
         console.log(id);
         console.log(layer);
@@ -1793,9 +2025,8 @@ watchUtils.when(app.activeView.popup, "visible", function(){
     };
 
 
+}); // end dojo load
 
-
-});
   </script>
 
    <!-- Bootstrap core JavaScript
@@ -1805,28 +2036,6 @@ watchUtils.when(app.activeView.popup, "visible", function(){
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <!-- Include all  plugins or individual files as needed
     <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>  -->
-    <script type="module">
-        // Import the functions you need from the SDKs you need
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-        import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-analytics.js";
-        // TODO: Add SDKs for Firebase products that you want to use
-        // https://firebase.google.com/docs/web/setup#available-libraries
-      
-        // Your web app's Firebase configuration
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-        const firebaseConfig = {
-          apiKey: "AIzaSyA-qwQ75xM3oOjUmkAZXO8o439Xe0Mg5kY",
-          authDomain: "ut-dnr-ugs-geochron-prod.firebaseapp.com",
-          projectId: "ut-dnr-ugs-geochron-prod",
-          storageBucket: "ut-dnr-ugs-geochron-prod.firebasestorage.app",
-          messagingSenderId: "744322220956",
-          appId: "1:744322220956:web:d802811ad01555dff7be59",
-          measurementId: "G-E4VR1M9ZM5"
-        };
-      
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const analytics = getAnalytics(app);
-      </script>
+
 </body>
 </html>
