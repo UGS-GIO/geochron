@@ -39,7 +39,6 @@
   <!-- ArcGIS JS 4 -->
   <!-- <link rel="stylesheet" href="https://js.arcgis.com/4.10/esri/css/main.css"> -->
 
-
   <style>
     html,
     body {
@@ -62,22 +61,14 @@
         cursor: pointer;
     }
 
-    .dgrid {
-        font-size: smaller;
+    /* adjust the font size of text in the search feature table grid  */
+    .esri-grid .esri-grid__content {
+        font-size: 11px !important;
     }
-
-    .count {
-        color: red;
+    /* make text wrap in the grid  */
+    vaadin-grid-cell-content {
+        white-space: normal !important;
     }
-
-    .dgrid-scroller {
-    top: 37px;
-    }
-
-    .dgrid-header-scroll {
-    background-color: #eee;
-    }
-
 
     .calcite-maps .calcite-search-expander .esri-search__sources-button.esri-widget--button {
         display: block !important;
@@ -196,7 +187,7 @@
                       <option value="satellite" data-vector="satellite">Satellite</option>
                       <option value="hybrid" data-vector="hybrid">Hybrid</option>
                       <option value="national-geographic" data-vector="national-geographic">National Geographic</option>
-                      <option value="topo" data-vector="topo-vector" selected="">Topographic</option>
+                      <option value="topo-vector" data-vector="topo-vector" selected="">Topographic</option>
                       <option value="gray" data-vector="gray-vector">Gray</option>
                       <option value="dark-gray" data-vector="dark-gray-vector">Dark Gray</option>
                       <option value="osm" data-vector="osm">Open Street Map</option>
@@ -233,11 +224,7 @@
           </div>
           <div id="collapseGrid" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingGrid">
               <div class="panel-body">
-
-
                   <div id="grid"></div>
-                  <!--  <div id="results" class="results"></div>  -->
-
               </div>
           </div>
       </div>
@@ -297,9 +284,9 @@
   </script>
 
 
-<link rel="stylesheet" href="https://js.arcgis.com/4.21/esri/themes/light/main.css" />
+<link rel="stylesheet" href="https://js.arcgis.com/4.24/esri/themes/light/main.css" />
   <!-- ArcGIS JS 4 -->
-  <script src="https://js.arcgis.com/4.21/"></script>
+  <script src="https://js.arcgis.com/4.24/"></script>
 
   <script>
     var app;
@@ -311,10 +298,8 @@ require([
     "esri/layers/WFSLayer",
 	"esri/layers/ogc/wfsUtils",
     "esri/layers/FeatureLayer",
-    "esri/layers/MapImageLayer",
     "esri/views/MapView",
     "esri/widgets/Search",
-    "esri/core/watchUtils",
     "esri/widgets/Home",
     "esri/widgets/Zoom",
     "esri/widgets/Compass",
@@ -322,18 +307,7 @@ require([
     "esri/widgets/Legend",
     "esri/widgets/BasemapToggle",
     "esri/widgets/LayerList",
-    "esri/tasks/QueryTask",
-    "esri/tasks/support/Query",
-    "dojo/query",
-    "dstore/Memory",
-    "dojo/data/ObjectStore",
-    "dojo/data/ItemFileReadStore",
-    "dojox/grid/DataGrid",
-    "dgrid/OnDemandGrid",
-    "dgrid/Selection",
-    "dgrid/List",
-    "dojo/_base/declare",
-    "dojo/request",
+    "esri/widgets/FeatureTable",
     // Calcite-maps
     "calcite-maps/calcitemaps-v0.10",
     "calcite-maps/calcitemaps-arcgis-support-v0.10",
@@ -341,18 +315,14 @@ require([
     "bootstrap/Collapse",
     "bootstrap/Dropdown",
     "bootstrap/Tab",
-    "dojo/on",
-    "dojo/dom",
-    "dojo/dom-construct",
-    "dojo/domReady!"
 
-], function(Map, Basemap, Graphic, SimpleMarkerSymbol, WFSLayer, WFSUtils, FeatureLayer, MapImageLayer, MapView, Search, watchUtils, Home, Zoom, Compass, Locate, Legend, BasemapToggle, LayerList, QueryTask, Query, query, Memory, ObjectStore, ItemFileReadStore, DataGrid, OnDemandGrid, Selection, List, declare, request, CalciteMaps, CalciteMapsArcGIS, on, dom
+], function(Map, Basemap, Graphic, SimpleMarkerSymbol, WFSLayer, WFSUtils, FeatureLayer, MapView, Search, Home, Zoom, Compass, Locate, Legend, BasemapToggle, LayerList, FeatureTable, CalciteMaps, CalciteMapsArcGIS
 ) {
     // App
     app = {
         zoom: 8,
         center: [-112, 39.5],
-        basemap: "topo",
+        basemap: "topo-vector",
         viewPadding: {
             top: 50,
             bottom: 0
@@ -392,18 +362,22 @@ require([
         container: "searchNavDiv",
         view: app.activeView,
         includeDefaultSources: false,
+        maxResults: 100,
+        maxSuggestions: 16,
+        minSuggestCharacters: 2,
+        popupOpenOnSelect: true
     });
     // Wire-up expand events
     CalciteMapsArcGIS.setSearchExpandEvents(app.searchWidgetNav);
     CalciteMapsArcGIS.setPopupPanelSync(app.mapView);
     //CalciteMapsArcGIS.setPopupPanelSync(app.sceneView);
     // Menu UI - change Basemaps
-    query("#selectBasemapPanel").on("change", function(e) {
+    $("#selectBasemapPanel").on("change", function(e) {
         app.mapView.map.basemap = e.target.options[e.target.selectedIndex].dataset.vector;
         //app.sceneView.map.basemap = e.target.value;
     });
     // Tab UI - switch views
-    query(".calcite-navbar li a[data-toggle='tab']").on("click", function(e) {
+    $(".calcite-navbar li a[data-toggle='tab']").on("click", function(e) {
         if (e.target.text.indexOf("2D") > -1) {
             //syncViews(app.sceneView, app.mapView);
             setActiveView(app.mapView);
@@ -425,17 +399,7 @@ require([
         toView.viewpoint = viewPt;
         toView.padding = app.viewPadding;
     }
-    // Search Widget
-    function syncSearch(view) {
-        app.searchWidgetNav.view = view;
-        if (app.searchWidgetNav.selectedResult) {
-            watchUtils.whenTrueOnce(view, "ready", function() {
-                app.searchWidgetNav.autoSelect = false;
-                app.searchWidgetNav.search(app.searchWidgetNav.selectedResult.name);
-                app.searchWidgetNav.autoSelect = true;
-            });
-        }
-    }
+
     // Active view
     function setActiveView(view) {
         app.activeView = view;
@@ -475,21 +439,22 @@ require([
     // show or hide any open calicite panels when user clicks for attribute details
     function showHideCalcitePanels(showPanel, showCollapse) {
         // hide all windows
-        query(".panel.in").removeClass("in"); //close any open panels
-        query(".panel-collapse").removeClass("in");
+        $(".panel.in").removeClass("in"); //close any open panels
+        $(".panel-collapse").removeClass("in");
 
         // if specified show this calcite panel
         if (showPanel) {
-            //query(showPanel).query(showCollapse).addClass("in");
-            query(showPanel).collapse("show"); // so I use these instead
-            query(showCollapse).collapse("show");
+            $(showPanel).addClass("in");
+            $(showCollapse).addClass("in");
+            //showPanel.collapse("show"); 
+            //showCollapse.collapse("show");
         }
     }
 
     // assign click even to fault name so summary goes to Fault Summary panel
     function addClickHandler(att, lyr) {
         /*
-        //var el = query("#dataDetail");
+        //var el = $("#dataDetail");
         $(document).off("click", "#dataDetail");
         //$("#dataDetail").on("click", function(e) {
         $(document).on("click", "#dataDetail", function(e) {
@@ -517,7 +482,7 @@ require([
             console.log(graphic.attributes.__esri_wfs_id__);
             //populateDetailsPanel(graphic.layer.name, graphic.attributes.__esri_wfs_id__);
             showHideCalcitePanels("#panelDetails", "#collapseDetails");
-            populateDetailsPanel(graphic.attributes);
+            populateDetailsPanel(graphic.attributes,graphic.layer.name);
         }
     });
 
@@ -966,7 +931,7 @@ require([
     //remove panels when user clicks on map
     app.activeView.on("click", function(event) {
         app.activeView.graphics.removeAll();
-        query("#panelDetails").removeClass("in");
+        $("#panelDetails").removeClass("in");
     });
 
 
@@ -1008,6 +973,7 @@ require([
 
     // app.activeView.map.add(faults4);
 
+    /*
     var flf = new MapImageLayer({
     url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Faults_Quaternary/MapServer",
     title: "Utah Quaternary Fault & Fold Database",
@@ -1031,7 +997,7 @@ require([
  ]
  });
 app.activeView.map.add(flf);  // adds the layer to the map
-
+*/
 
     //add featurelayers
 
@@ -1512,223 +1478,84 @@ app.activeView.map.add(flf);  // adds the layer to the map
 
     // Search Sources //    ---------------------------------------------------------------------------------------------------------
 
+    const rsymbol = {
+                type: "simple-marker",
+                style: "circle",
+                color: "cyan",
+                size: "9px",
+                outline: {   
+                    color: [0, 255, 255],
+                    width: 1 // points
+                }
+            }
+
     // see line 976 here,   view-source:https://borehole.geology.utah.gov/
+    // see above for: app.searchWidgetNav = new Search({
     var sources = [{
-            //featureLayer: new FeatureLayer({
-            //    url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/2",
-            layer: new WFSLayer({
-                url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
-                name: "carbon",
-                outFields: ["*"],
-                popupTemplate: {
-                    title: "Radiocarbon (<sup>14</sup>C) Sample and Dating Details",
-                    content: "{Project:createClickContentCarbon}{SampleID:createClickContentCarbon}{OBJECTID:createClickContentCarbon}{SampleMaterial:createClickContentCarbon}{DatingType:createClickContentCarbon}{ConventionalAge:createClickContentCarbon}{CalibratedAge1A:createClickContentCarbon}{CalibratedAge1B:createClickContentCarbon}{CalibratedAge1Sigma:createClickContentCarbon}{CalibratedAge1Unit:createClickContentCarbon}{LabReportsRS:createClickContentCarbon}{Dating_Method:createClickContentCarbon}"
-                    //   visible: true
-                }
-            }),
+            layer: carbon,
             popupEnabled: true,
-            displayField: "Project", 
-            searchFields: ["Project", "SampledBy", "SampleID", "LabSampleID", "SampleMaterial"], 
+            displayField: "project", 
+            searchFields:   ["project", "sampledby", "sampleid", "labsampleid", "samplematerial"], 
             name: "Carbon Search",
-            maxResults: 100,
-            maxSuggestions: 16,
-            minSuggestCharacters: 2,
-            popupOpenOnSelect: true,
-            resultSymbol: {
-                type: "simple-marker",
-                style: "circle",
-                color: "cyan",
-                size: "9px",
-                outline: {   
-                    color: [0, 255, 255],
-                    width: 1 // points
-                }
-            },
+            resultSymbol: rsymbol,
         },
         {
-            //featureLayer: new FeatureLayer({
-            //    url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/3",
-            layer: new WFSLayer({
-                url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
-                outFields: ["*"],
-                popupTemplate: {
-                    title: "Argon (<sup>39</sup>Ar/<sup>40</sup>Ar) Dating Result Summary",
-                    content: "{Project:createClickContentAr}{SampleID:createClickContentAr}{OBJECTID:createClickContentAr}{SampleMaterial:createClickContentAr}{Age:createClickContentAr}{AgeRange:createClickContentAr}{LabReportRS:createClickContentAr}{Dating_Method:createClickContentAr}"
-                }
-            }),
+            layer: argon,
             popupEnabled: true,
-            displayField: "Project", 
-            searchFields: ["Project", "SampleBy", "SampleID", "LabSampleID", "SampleMaterial"], 
+            displayField: "project", 
+            searchFields: ["project", "sampledby", "sampleid", "labsampleid", "samplematerial"], 
             name: "Argon Search",
-            maxResults: "100",
-            maxSuggestions: 16,
-            minSuggestCharacters: 2,
-            popupOpenOnSelect: true,
-            resultSymbol: {
-                type: "simple-marker",
-                style: "circle",
-                color: "cyan",
-                size: "9px",
-                outline: {   
-                    color: [0, 255, 255],
-                    width: 1 // points
-                }
-            },
+            resultSymbol: rsymbol,
         },
         {
-            //featureLayer: new FeatureLayer({
-            //    url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/1",
-            layer: new WFSLayer({
-                url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
-                outFields: ["*"],
-                popupTemplate: {
-                    title: "Luminescence Dating Result Summary",
-                    content: "{Project:createClickContentLum}{SampleID:createClickContentLum}{OBJECTID:createClickContentLum}{DatingType:createClickContentLum}{Age:createClickContentLum}{AgeRange:createClickContentLum}{LabReportRS:createClickContentLum}{Dating_Method:createClickContentLum}"
-                }
-            }),
+            layer: luminescence,
             popupEnabled: true,
-            displayField: "Project", 
-            searchFields: ["Project", "SampleBy", "SampleID", "LabSampleID", "SampleMaterial"], 
+            displayField: "project", 
+            searchFields: ["project", "sampledby", "sampleid", "labsampleid", "samplematerial"], 
             name: "Luminescence Search",
-            maxResults: "100",
-            maxSuggestions: 16,
-            minSuggestCharacters: 2,
-            popupOpenOnSelect: true,
-            resultSymbol: {
-                type: "simple-marker",
-                style: "circle",
-                color: "cyan",
-                size: "9px",
-                outline: {   
-                    color: [0, 255, 255],
-                    width: 1 // points
-                }
-            },
+            resultSymbol: rsymbol,
         },
         {
-            //featureLayer: new FeatureLayer({
-            //    url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/4",
-            layer: new WFSLayer({
-                url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
-                outFields: ["*"],
-                popupTemplate: {
-                    title: "Uranium-Thorium-Lead Dating Result Summary",
-                    content: "{Project:createClickContentAr}{SampleID:createClickContentAr}{OBJECTID:createClickContentAr}{SampleMaterial:createClickContentAr}{Age:createClickContentAr}{AgeRange:createClickContentAr}{LabReportRS:createClickContentAr}{Dating_Method:createClickContentAr}"
-                }
-            }),
+            layer: uranium,
             popupEnabled: true,
-            displayField: "Project", 
-            searchFields: ["Project", "SampleBy", "SampleID", "LabSampleID", "SampleMaterial"], 
+            displayField: "project", 
+            searchFields: ["project", "sampledby", "sampleid", "labsampleid", "samplematerial"], 
             name: "Uranium-Thorium-Lead Search",
-            maxResults: "100",
-            maxSuggestions: 16,
-            minSuggestCharacters: 2,
-            popupOpenOnSelect: true,
-            resultSymbol: {
-                type: "simple-marker",
-                style: "circle",
-                color: "cyan",
-                size: "9px",
-                outline: {   
-                    color: [0, 255, 255],
-                    width: 1 // points
-                }
-            },
+            resultSymbol: rsymbol,
         },
         {
-            //featureLayer: new FeatureLayer({
-            //    url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/5",
-            layer: new WFSLayer({
-                url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
-                outFields: ["*"],
-                popupTemplate: {
-                    title: "Rubidium-Strontium Dating Result Summary",
-                    content: "{Project:createClickContentRhu}{SampleID:createClickContentRhu}{OBJECTID:createClickContentRhu}{SampleMaterial:createClickContentRhu}{Age:createClickContentRhu}{AgeRange:createClickContentRhu}{LabReportRS:createClickContentRhu}{Dating_Method:createClickContentRhu}"
-                }
-            }),
+            layer: rubidium,
             popupEnabled: true,
-            displayField: "Project", 
-            searchFields: ["Project", "SampleBy", "SampleID", "LabSampleID", "SampleMaterial"], 
+            displayField: "project", 
+            searchFields: ["project", "sampledby", "sampleid", "labsampleid", "samplematerial"], 
             name: "Rubidium-Strontium Search",
-            maxResults: "100",
-            maxSuggestions: 16,
-            minSuggestCharacters: 2,
-            popupOpenOnSelect: true,
-            resultSymbol: {
-                type: "simple-marker",
-                style: "circle",
-                color: "cyan",
-                size: "9px",
-                outline: {   
-                    color: [0, 255, 255],
-                    width: 1 // points
-                }
-            },
+            resultSymbol: rsymbol,
         },
         {
-            //featureLayer: new FeatureLayer({
-            //    url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/6",
-            layer: new WFSLayer({
-                url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
-                outFields: ["*"],
-                popupTemplate: {
-                    title: "Fission Track Dating Result Summary",
-                    content: "{Project:createClickContentFis}{SampleID:createClickContentFis}{OBJECTID:createClickContentFis}{SampleMaterial:createClickContentFis}{Age:createClickContentFis}{LabReportRS:createClickContentFis}{Dating_Method:createClickContentFis}"
-                }
-            }),
+            layer: fission,
             popupEnabled: true,
-            displayField: "Project", 
-            searchFields: ["Project", "SampleBy", "SampleID", "LabSampleID", "SampleMaterial"], 
+            displayField: "project", 
+            searchFields: ["project", "sampledby", "sampleid", "labsampleid", "samplematerial"], 
             name: "Fission-Track Search",
-            maxResults: "100",
-            maxSuggestions: 16,
-            minSuggestCharacters: 2,
-            popupOpenOnSelect: true,
-            resultSymbol: {
-                type: "simple-marker",
-                style: "circle",
-                color: "cyan",
-                size: "9px",
-                outline: {   
-                    color: [0, 255, 255],
-                    width: 1 // points
-                }
-            },
+            resultSymbol: rsymbol,
         },
         {
-            //featureLayer: new FeatureLayer({
-            //    url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/7",
-            layer: new WFSLayer({
-                url: "https://ugs-geoserver-prod-flbcoqv7oa-uc.a.run.app/geoserver/wfs",
-                name: "cosmogenic",
-                outFields: ["*"],
-                popupTemplate: {
-                    title: "Cosmogenic Dating Result Summary",
-                    content: "{Project:createClickContentCos}{SampleID:createClickContentCos}{OBJECTID:createClickContentCos}{SampleMaterial:createClickContentCos}{ExposureAge:createClickContentCos}{LabReportRS:createClickContentCos}{Dating_Method:createClickContentCos}"
-                }
-            }),
+            layer: cosmo,
             popupEnabled: true,
-            displayField: "Project", 
-            searchFields: ["Project", "SampleBy", "SampleID", "LabSampleID", "SampleMaterial"], 
+            displayField: "project", 
+            searchFields: ["project", "sampledby", "sampleid", "labsampleid", "samplematerial"], 
             name: "Cosmogenic Search",
-            maxResults: "100",
-            maxSuggestions: 16,
-            minSuggestCharacters: 2,
-            resultSymbol: {
-                type: "simple-marker",
-                style: "circle",
-                color: "cyan",
-                size: "9px",
-                outline: {   
-                    color: [0, 255, 255],
-                    width: 1 // points
-                }
-            },
+            resultSymbol: rsymbol,
         },
     ];
 
+    //Search Code
+    app.searchWidgetNav.allPlaceholder = "Find Project or Sample";
+    app.searchWidgetNav.sources = sources;
+
 
     //grid declaration
+    /*
     var grid = new(declare([OnDemandGrid, Selection]))({
         class: "grid",
         selectionMode: 'single',
@@ -1738,29 +1565,93 @@ app.activeView.map.add(flf);  // adds the layer to the map
 
         columns: [{
                 label: "Project",
-                field: "Project"
+                field: "project"
             },
             {
                 label: "Sample ID",
-                field: "SampleID"
+                field: "sampleid"
             },
             {
                 label: "Dating Method",
-                field: "Dating_Method"
+                field: "dating_method"
             },
             {
                 label: "Dating Type",
-                field: "DatingType"
+                field: "datingtype"
             }
         ]
     }, "grid");
     grid.startup();
+    */
 
-    //Search Code
+    app.searchWidgetNav.on("search-complete", function(e) {
+        
+        console.log(e.searchTerm);
+        app.activeView.popup.clear(); // close popup if its open from last search
+        var results = null;  // clear old searches
+        console.log(e["results"]);
+        console.log(e["results"][0].source.layer.id);
+        console.log(e["results"][0].source.layer);
+        var featureLayer = e["results"][0].source.layer;
+        if (e.searchTerm !== "" && e["results"]) {
+        // get the layer!!!! 
 
-    app.searchWidgetNav.allPlaceholder = "Find Project or Sample";
-    app.searchWidgetNav.sources = sources;
+           
+        showHideCalcitePanels("#panelGrid", "#collapseGrid");
+        if (featureTable) featureTable.destroy();
+        document.getElementById("grid").innerHTML = "";
+        var featureTable = new FeatureTable({
+            view: app.activeView,
+            layer: featureLayer,
+            relatedRecordsEnabled: true,
+            container: document.getElementById("grid"),
+            effectiveSize: 120,
+            tableTemplate: { 
+                columnTemplates: [ // takes an array of FieldColumnTemplate and GroupColumnTemplate
+                    { 
+                        type: "field",
+                        fieldName: "project",
+                        label: "Project",
+                        width: "100px",
+                        callback: (params) => {
+                            console.log('work!'); //broken
+                            app.activeView.goTo(params.feature);
+                        }
+                    },
+                    { 
+                        type: "field",
+                        fieldName: "sampleid",
+                        label: "Sample ID",
+                        width: "70px",
+                    },
+                    { 
+                        type: "field",
+                        fieldName: "datingmethod",
+                        label: "Dating Method",
+                        width: "70px",
+                    },
+                    { 
+                        type: "field",
+                        fieldName: "datingtype",
+                        label: "Dating Type",
+                        width: "70px",
+                    },
+                ]
+            }
+        });
+           
+        } // end if
+        document.getElementById("grid").style.height = "460px";
+        const checkboxEle = document.getElementById("checkboxId");
+        checkboxEle.onchange = () => {
+            toggleFeatureTable();
+        };
+        //$("#panelGrid").collapse("show");
+        //$("#collapseGrid").collapse("show");
 
+    });
+
+/*
     app.searchWidgetNav.on("search-complete", function(e) {
       console.log(e.searchTerm);
         app.activeView.popup.clear(); // close popup if its open from last search
@@ -1793,21 +1684,21 @@ app.activeView.map.add(flf);  // adds the layer to the map
 
                 var test_store = new Memory({
                     data: srch,
-                    idProperty: "OBJECTID"
+                    idProperty: "__esri_wfs_id__"
                 });
                 console.log(test_store);
                 grid.set('collection', test_store);
 
                 grid.on('.dgrid-row:click', function(event) {
 
-                    query("#panelDetails").removeClass("in"); //close any open panels
-                    query("#collapseDetails").removeClass("in");
+                    $("#panelDetails").removeClass("in"); //close any open panels
+                    $("#collapseDetails").removeClass("in");
                     app.activeView.graphics.removeAll();
                     var idx = "";
                     var idx = grid.row(event).id;
                     var item;
                     resultsArray.forEach(function(ftr) {
-                        if (ftr.attributes.OBJECTID === idx) {
+                        if (ftr.attributes.__esri_wfs_id__ === idx) {
                             item = ftr;
                         }
                     });
@@ -1845,61 +1736,36 @@ app.activeView.map.add(flf);  // adds the layer to the map
                     });
                 }, );
         }
-        query("#panelGrid").collapse("show");
-            query("#collapseGrid").collapse("show");
+        $("#panelGrid").collapse("show");
+        $("#collapseGrid").collapse("show");
 
       }
 
     });
-
 
     grid.on('dgrid-deselect', function(event) {
         app.activeView.graphics.removeAll();
         app.activeView.popup.clear();
 
     });
+    */
 
     app.searchWidgetNav.on("search-start", function(e) {
-        console.log(e);
+        console.log('starting search');
         app.activeView.popup.close(); //close previous popup when starting new search
-        query("#panelInfo").removeClass("in"); //close any open panels
-        query("#collapseInfo").removeClass("in");
+        //$("#panelInfo").removeClass("in"); //close any open panels
+        //$("#collapseInfo").removeClass("in");
     });
 
     app.searchWidgetNav.on("search-clear", function(e) {
-        app.activeView.graphics.removeAll();
-        resultsArray = null;
+        document.getElementById("grid").innerHTML = "";
         app.activeView.popup.close();
-        query("#panelDetails").removeClass("in"); //close any open panels
-        query("#collapseDetails").removeClass("in");
-        query("#panelGrid").collapse("hide");
-        query("#collapseGrid").collapse("hide");
+        $("#panelDetails").removeClass("in"); //close any open panels
+        $("#collapseDetails").removeClass("in");
+        showHideCalcitePanels("#panelGrid", "#collapseGrid");
     });
 
 
-
-
-/*
-    watchUtils.when(app.activeView.popup, "visible", function(){
-        query(".esri-popup__navigation").on("click", function(e) {
-            setTimeout(function() {
-                    popupControls();
-                }, 500);
-        });
-    });
-
-    // get objectID and layer (from hidden attributes in div),
-    // and do query task to populate details pane
-    function popupControls() {
-        var div = query("#chronID")[0];
-        if (div) {
-            var objectid = parseInt(div.getAttribute("data-id"));
-            var lyr = parseInt(div.getAttribute("data-lyr"));
-            console.log(lyr);
-            populateDetailsPanel(lyr, objectid)
-        } // end if
-    }
-  */
 
     // query the server on each click so we can limit data in initialization
     function populateDetailsPanel_new(layer, id) {
@@ -2029,7 +1895,7 @@ app.activeView.map.add(flf);  // adds the layer to the map
     */
 
 
-    function populateDetailsPanel(rslt) {
+    function populateDetailsPanel(rslt,layer) {
             document.getElementById("attDetails").innerHTML = "";
             console.log(rslt);
             //var obProperty = rslt[0];
@@ -2046,13 +1912,13 @@ app.activeView.map.add(flf);  // adds the layer to the map
 
             //results.forEach(function (item, n) {
             $.each(rslt, function(key, value) { //jquery works, dojo doesn't
-                console.log(key+", "+value);
+                //console.log(key+", "+value);
                
                 if (value) {
                     //console.log(key);
                     //console.log(value);
                     if (key === "shape_length" || key === "shape_area" || key === "__esri_wfs_id__") {
-                        return;
+                        return;Zoom
 
                     } else if (key === "url_link") { // wrap the link field in an html link so it's clickable
                         document.getElementById("attDetails").innerHTML += aliases[key] + ": <a target='_blank' href='" + value + "'>" + value + "</a><br>";
@@ -2094,37 +1960,43 @@ app.activeView.map.add(flf);  // adds the layer to the map
 
     // do a query task to get all the lab details and add them to details pane
     function getLabDetails(lab, layer) {
-        console.log(lab);
+        console.log("GETTING LAB DETAILS!!!!!!!!"); console.log(lab);
+
+        // #1 get the rest of the data from the main table ----------------------------
+        fetch('https://postgrest-seamlessgeolmap-734948684426.us-central1.run.app/'+layer+'?labcode='+lab, {
+        // 'https://postgrest-seamlessgeolmap-734948684426.us-central1.run.app/'+layer+'?labsampleid=eq.L-672H'   
+            headers: {'Accept-Profile': 'geochron'}
+        })
+            .then(response => response.json())
+            .then(results => {
+                document.getElementById("attDetails").innerHTML = "";
+                var results = rslt.features[0].attributes;
+                $.each(results, function(key, value) { //jquery works, dojo doesn't
+                    if (value) {
+                        //console.log(key+", "+value)
+                        if (key == "RecordDate" || key == "UpdateDate") {
+                            date = moment(value).format('l');
+                            document.getElementById("attDetails").innerHTML += "<b>" + key + "</b>: " + date + "<br>";
+                        } else if (key == "LabURL") {
+                            document.getElementById("attDetails").innerHTML += "<b>" + key + "</b>: <a target='_blank' href='" + value + "'>" + value + "</a><br>";
+                        } else if (key == "OBJECTID" || key == "LabCode" || key == "LabState") {
+                            return;
+                        } else {
+                            document.getElementById("attDetails").innerHTML += "<b>" + key + "</b>: " + value + "<br>";
+                        }
+
+                    }
+                }); // end .each
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+        });
+        /*
         var queryFtr = new Query(); //build query
         queryFtr.where = "LabCode = '" + lab + "'"; // "SampleID = 'C9'";   //queryFtr.where = 'SampleID = rowData.SampleID';
         queryFtr.returnGeometry = false;
         queryFtr.outFields = ["*"];
-
-        var queryFtrTask = new QueryTask({
-            url: "https://webmaps.geology.utah.gov/arcgis/rest/services/Hazards/Geochronology/MapServer/10"
-        });
-        queryFtrTask.execute(queryFtr).then(function(rslt) { //execute query
-            // loop through the results and print them to the panel
-            document.getElementById("attDetails").innerHTML = "";
-            var results = rslt.features[0].attributes;
-            $.each(results, function(key, value) { //jquery works, dojo doesn't
-                if (value) {
-                    //console.log(key+", "+value)
-                    if (key == "RecordDate" || key == "UpdateDate") {
-                        date = moment(value).format('l');
-                        document.getElementById("attDetails").innerHTML += "<b>" + key + "</b>: " + date + "<br>";
-                    } else if (key == "LabURL") {
-                        document.getElementById("attDetails").innerHTML += "<b>" + key + "</b>: <a target='_blank' href='" + value + "'>" + value + "</a><br>";
-                    } else if (key == "OBJECTID" || key == "LabCode" || key == "LabState") {
-                        return;
-                    } else {
-                        document.getElementById("attDetails").innerHTML += "<b>" + key + "</b>: " + value + "<br>";
-                    }
-
-                }
-            }); // end .each
-
-        }); // end .execute
+        */
         document.getElementById("details").innerHTML = "Lab Details";
     };
 
