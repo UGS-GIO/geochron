@@ -242,6 +242,7 @@
               <div class="panel-body">
 
                   <div id="attDetails"></div>
+                  <div id="labDetails"></div>
 
               </div>
           </div>
@@ -290,6 +291,8 @@
 
   <script>
     var app;
+    const aliases={"objectid":"OBJECTID","shape":"Shape","project":"Project","sampleid":"Sample Identification","sampletype":"Sample Type","samplematerial":"Sample Material","sampleunit":"Sample Unit","sampledate":"Sample Date","sampleby":"Sample By","samplephotors":"Sample Photo RS","sampletestflag":"Sample Test Flag","samplereliability":"Sample Reliability","samplelocation":"Sample Location","locationtype":"Sample Coordinate Source","samplelatitude":"Sample Latitude","samplelongitude":"Sample Longitude","sampleelevation":"Sample Elevation","localx":"Local Coordinates X","localy":"Local Coordinates Y","localz":"Local Coordinates Z","locationxyaccuracy":"Location XY Accuracy","locationzaccuracy":"Location Z Accuracy","lab":"Laboratory","labsampleid":"Sample Identification","labtestdate":"Laboratory Report Date","datingtype":"Dating Type","dating_method":"Dating Method","datinganalysis":"Dating Analysis","equivalentdose":"Equivalent Dose","equivalentdoserange":"Equivalent Dose Range","age":"Age","agerange":"Age Range","agesigma":"Age Sigma","labreport":"Lab Report","labreportrs":"UGS GeoData Archive Resource ID","recorddate":"Initial Database Entry Date/Time","updatedate":"Last Database Update Date/Time","labnotes":"Lab Notes","samplenotes":"Sample Notes","updated_by":"Updated By","project_id":"Project_ID","projectname":"ProjectName","projecttype":"Project Type","projectlocation":"ProjectLocation","orgname":"OrgName","orgaddress1":"OrgAddress1","orgaddress2":"OrgAddress2","orgcity":"OrgCity","orgstate":"OrgState","orgzipcode":"OrgZipCode","orgphone":"OrgPhone","orgurl":"OrgURL","orgcontact":"OrgContact","orgcontactphone":"OrgContactPhone","orgcontactemail":"OrgContactEmail","publication_url":"Publication_URL","shape_length":"Shape_Length","shape_area":"Shape_Area","206pb_238u_age":"206Pb/238U Age","206pb_238u_age_uncertainty":"206Pb/238U Age Uncertainty","207pb_235u_age":"207Pb/235U Age","207pb_235u_age_uncertainty":"207Pb/235U Age Uncertainty","207pb_206pb_age":"207Pb/206Pb Age","207pb_206pb_age_uncertainty":"207Pb/206Pb Age Uncertainty","208pb_232th_age":"208Pb/232Th Age","208pb_232th_age_uncertainty":"208Pb/232Th Age Uncertainty","upperintercept":"Upper Intercept","upperinterceptuncertainty":"Upper Intercept Uncertainty","lowerintercept":"Lower Intercept","lowerinterceptuncertainty":"Lower Intercept Uncertainty","initialpbcomposition":"Initial Pb Composition","decayconstaints":"Decay Constaints","u_concentration":"U Concentration","th_concentration":"Th Concentration","pb_concentration":"Pb Concentration","isotopicconcentration204pb":"204Pb Concentration","isotopic_concentration_206pb":"206Pb Concentration","isotopic_concentration_207pb":"207Pb Concentration","isotopic_concentration_208pb":"208Pb Concentration","ageuncertainty":"Age Uncertainty","initial87sr_86sr":"Initial 87Sr/86Sr","decayconstants":"Decay Constants","rbconcentration":"Rb Concentration","srconcentration":"Sr Concentration","radiogenic87sr":"Radiogenic 87Sr","ratio_87rb_86sr":"Ratio 87Rb/86Sr","ratio_87sr_86sr":"Ratio 87Sr/86Sr","trackdensity":"Track Density (count per square cm)","trackscounted":"Tracks Counted","inducedtrackdensity":"Induced Track Density","inducedtrackscounted":"Induced Tracks Counted","totalinducedtrackrates":"Total Induced Track Rates","neutronfluxdensity":"Neutron Flux Density","uraniumconcentration":"Uranium Concentration","chlorine36":"Chlorine36","chlorine36_error":"Chlorine36 Error","samplethickness":"Sample Thickness","externalerror":"External Error","shieldingfactor":"Shielding Factor","erosionrate":"Erosion Rate","calibrationdataset":"Calibration Dataset","atomcountsigma":"Atom Count Sigma","ageerror":"Age Error","ageerrorsigma":"Age Error Sigma","numbershards":"Number of Shards","d2h":"d2H","d18o":"d18O","c13c12ratio":"C13C12 Ratio","c14pmc":"C14PMC","c14pmcerror1sigma":"C14PMC Error 1 Sigma","tritium":"Tritium","tritiumerror1sigma":"Tritium Error 1 Sigma","qualitativeage":"Qualitative Age","hravg":"Hravg","travg":"Travg","f14c_age_mi":"F14C_age_mi","f14c_age_ma":"F14C_age_ma","f14c_age":"F14C_age","f14c_age_av":"F14C_age_av","ageaverageerror":"Age Average Error","ageaveragemodern":"Age Average Modern","phage":"PH Age","cfage":"CF Age","fgage":"FG Age","conventionalage":"Conventional Age","c13c12ratioerror1sigma":"C13C12 Ratio Error 1 Sigma","conventionalageerror":"Conventional Age Error","qualitativeageerror":"Qualitative Age Error","fgageerror":"FG Age Error","cfageerror":"CF Age Error","phageerror":"PH Age Error","calibratedage1a":"Calibrated Age 1A","calibratedage1b":"Calibrated Age 1B","calibratedage1sigma":"Calibrated Age 1 Sigma","calibratedage1unit":"Calibrated Age 1 Unit","calibratedage2a":"Calibrated Age 2A","calibratedage2b":"Calibrated Age 2B","calibratedage2sigma":"Calibrated Age 2 Sigma","calibratedage2unit":"Calibrated Age 2 Unit","calibratedage3a":"Calibrated Age 3A","calibratedage3b":"Calibrated Age 3B","calibratedage3sigma":"Calibrated Age 3 Sigma","calibratedage3unit":"Calibrated Age 3 Unit","calibrationcurve":"Calibration Curve","labcode":"LabCode","labactive":"LabActive","labname":"LabName","labaddress1":"LabAddress1","labaddress2":"LabAddress2","labcity":"LabCity","labstate":"LabState","labzipcode":"LabZipCode","labphone":"LabPhone","laburl":"LabURL","labcontact":"LabContact","labcontactphone":"LabContactPhone","labcontactemail":"LabContactEmail"};
+
 require([
     "esri/Map",
     "esri/Basemap",
@@ -308,6 +311,7 @@ require([
     "esri/widgets/BasemapToggle",
     "esri/widgets/LayerList",
     "esri/widgets/FeatureTable",
+    "esri/core/reactiveUtils",
     // Calcite-maps
     "calcite-maps/calcitemaps-v0.10",
     "calcite-maps/calcitemaps-arcgis-support-v0.10",
@@ -316,7 +320,7 @@ require([
     "bootstrap/Dropdown",
     "bootstrap/Tab",
 
-], function(Map, Basemap, Graphic, SimpleMarkerSymbol, WFSLayer, WFSUtils, FeatureLayer, MapView, Search, Home, Zoom, Compass, Locate, Legend, BasemapToggle, LayerList, FeatureTable, CalciteMaps, CalciteMapsArcGIS
+], function(Map, Basemap, Graphic, SimpleMarkerSymbol, WFSLayer, WFSUtils, FeatureLayer, MapView, Search, Home, Zoom, Compass, Locate, Legend, BasemapToggle, LayerList, FeatureTable, reactiveUtils, CalciteMaps, CalciteMapsArcGIS
 ) {
     // App
     app = {
@@ -452,7 +456,7 @@ require([
     }
 
     // assign click even to fault name so summary goes to Fault Summary panel
-    function addClickHandler(att, lyr) {
+    //function addClickHandler(att, lyr) {
         /*
         //var el = $("#dataDetail");
         $(document).off("click", "#dataDetail");
@@ -463,7 +467,7 @@ require([
         });
         return false;
         */
-    }
+    //}
 
     // fetch info
     var popupAction = {
@@ -486,12 +490,34 @@ require([
         }
     });
 
+    reactiveUtils.on(
+        () => app.activeView.popup.viewModel,
+        "trigger-action",
+        (event) => {
+            if (event.action.id === "sample-data") {
+            // do the above stuff
+        }
+    });
+
+    reactiveUtils.watch(
+        () => app.activeView.popup.selectedFeature,
+        (graphic) => {
+            if (graphic) {
+                if (graphic.attributes.__esri_wfs_id__){   //if its the topo poly layer dont populate
+                    //console.log("fired the reactive util!");
+                    showHideCalcitePanels("#panelDetails", "#collapseDetails");
+                    populateDetailsPanel(graphic.attributes,graphic.layer.name);
+                }
+            }
+        }
+    );
+
 
 //Popup Templates for All Methods ------------------------------------------------------------
 
     var contentTeph = function(value) {
         var content = "";
-        console.log(value.graphic);
+        //console.log(value.graphic);
         var data = value.graphic.attributes;
 
         if (data.project) {
@@ -522,8 +548,7 @@ require([
                 content += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
             }
         }
-        //data.dating_method;
-        addClickHandler(data.__esri_wfs_id__, "8");
+
         return content;
     };
 
@@ -532,7 +557,7 @@ require([
 
     getContentTrit = function(value) {
     var content = "";
-    console.log(value.graphic);
+    //console.log(value.graphic);
     var data = value.graphic.attributes;
 
     if (data.project) {
@@ -575,19 +600,14 @@ require([
             content += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
         }
     }
-    //data.dating_method;
-    addClickHandler(data.__esri_wfs_id__, "9");
+
     return content;
 };
 
-    createClickContentCarbon2 = function(value) {
-        console.log(value.graphic);
-        var data = value.graphic.attributes;
-    };
 
     createClickContentCarbon = function(value) {
         var content = "";
-        console.log(value.graphic);
+        //console.log(value.graphic);
         var data = value.graphic.attributes;
 
         if (data.project) {
@@ -638,8 +658,7 @@ require([
                 content += "<span class='bold'><b>Detailed Report: </b></span>Detailed report not currently available.";
             }
         }
-        //data.dating_method;
-        addClickHandler(data.__esri_wfs_id__, "2");
+
         return content;
     };
 
@@ -648,7 +667,7 @@ require([
 
     createClickContentLum = function(value) {
         var contentLum = "";
-        console.log(value.graphic);
+        //console.log(value.graphic);
         var data = value.graphic.attributes;
 
         if (data.project) {
@@ -683,8 +702,6 @@ require([
             }
         }
 
-        //data.dating_method;
-        addClickHandler(data.__esri_wfs_id__, "1");
         return contentLum;
     };
 
@@ -723,15 +740,13 @@ require([
             }
         }
 
-        //data.dating_method;
-        addClickHandler(data.__esri_wfs_id__, "3");
         return contentAr;
     };
 
 
     createClickContentThor = function(value) {
         var contentThor = "";
-        console.log(value.graphic);
+        //console.log(value.graphic);
         var data = value.graphic.attributes;
 
         if (data.project) {
@@ -759,14 +774,12 @@ require([
             }
         }
 
-        //data.dating_method;
-        addClickHandler(data.__esri_wfs_id__, "4");
         return contentThor;
     };
 
     createClickContentRhu = function(value) {
         var contentRhu = "";
-        console.log(value.graphic);
+        //console.log(value.graphic);
         var data = value.graphic.attributes;
 
         if (data.project) {
@@ -799,8 +812,6 @@ require([
             }
         }
 
-        //data.dating_method;
-        addClickHandler(data.__esri_wfs_id__, "5");
         return contentRhu;
     };
 
@@ -836,8 +847,6 @@ require([
             }
         }
 
-        //data.dating_method;
-        addClickHandler(data.__esri_wfs_id__, "6");
         return contentFis;
     };
 
@@ -873,8 +882,6 @@ require([
             }
         }
 
-        //data.dating_method;
-        addClickHandler(data.__esri_wfs_id__, "7");
         return contentCos;
     };
 
@@ -911,8 +918,6 @@ require([
             }
         }
 
-        addClickHandler(data.__esri_wfs_id__, "0");
-        console.log(data.__esri_wfs_id__);
         return contentPro;
     };
 
@@ -940,6 +945,7 @@ require([
     var topoIndex = new FeatureLayer({
         url: "https://webmaps.geology.utah.gov/arcgis/rest/services/General_Info/Topo_Indices/MapServer/2",
         title: "USGS 7.5' Topo Map Index",
+        name: "topoindex",
         outFields: ["quad_name"],
         legendEnabled: false,
         listMode: "hide",
@@ -1589,13 +1595,11 @@ app.activeView.map.add(flf);  // adds the layer to the map
         console.log(e.searchTerm);
         app.activeView.popup.clear(); // close popup if its open from last search
         var results = null;  // clear old searches
-        console.log(e["results"]);
-        console.log(e["results"][0].source.layer.id);
-        console.log(e["results"][0].source.layer);
+        //console.log(e["results"]);
+        //console.log(e["results"][0].source.layer.id);
+        //console.log(e["results"][0].source.layer);
         var featureLayer = e["results"][0].source.layer;
         if (e.searchTerm !== "" && e["results"]) {
-        // get the layer!!!! 
-
            
         showHideCalcitePanels("#panelGrid", "#collapseGrid");
         if (featureTable) featureTable.destroy();
@@ -1651,104 +1655,6 @@ app.activeView.map.add(flf);  // adds the layer to the map
 
     });
 
-/*
-    app.searchWidgetNav.on("search-complete", function(e) {
-      console.log(e.searchTerm);
-        app.activeView.popup.clear(); // close popup if its open from last search
-        var results = null;  // clear old searches
-
-        if (e.searchTerm !== "") {
-
-        console.log(e["results"]);
-
-        if (e["results"]) {
-            resultsArray = [];
-            e["results"].forEach(function(rslt) { // loop through the three possible source layers
-              //console.log(rslt);
-                rslt.results.forEach(function(rslt2) {
-                    resultsArray.push(rslt2.feature);
-                });
-            });
-
-            // put our attributes in an object the datagrid can ingest.
-            var srch = {
-                    "items": []
-                };
-                
-                resultsArray.forEach(function(ftrs) {
-
-                    var att = ftrs.attributes;
-
-                    srch.items.push(att);
-                });
-
-                var test_store = new Memory({
-                    data: srch,
-                    idProperty: "__esri_wfs_id__"
-                });
-                console.log(test_store);
-                grid.set('collection', test_store);
-
-                grid.on('.dgrid-row:click', function(event) {
-
-                    $("#panelDetails").removeClass("in"); //close any open panels
-                    $("#collapseDetails").removeClass("in");
-                    app.activeView.graphics.removeAll();
-                    var idx = "";
-                    var idx = grid.row(event).id;
-                    var item;
-                    resultsArray.forEach(function(ftr) {
-                        if (ftr.attributes.__esri_wfs_id__ === idx) {
-                            item = ftr;
-                        }
-                    });
-
-                    var cntr = [];
-                    cntr.push(item.geometry.longitude);
-                    cntr.push(item.geometry.latitude);
-
-                    app.activeView.goTo({
-                        center: cntr, // position:
-                        zoom: 13
-                    });
-
-                    app.activeView.graphics.removeAll();
-                    var graphic = new Graphic({
-
-                        geometry: item.geometry,
-                        symbol: {
-                            type: "simple-marker",
-                            style: "circle",
-                            outline: {
-                                color: [0,255,255],
-                                width: 3
-                            }
-                        }
-                    });
-
-                    app.activeView.graphics.add(graphic);
-
-                    // open the popup, assign its attributes and location
-                    app.activeView.popup.open({
-                        features: [item],
-
-                        location: item.geometry
-                    });
-                }, );
-        }
-        $("#panelGrid").collapse("show");
-        $("#collapseGrid").collapse("show");
-
-      }
-
-    });
-
-    grid.on('dgrid-deselect', function(event) {
-        app.activeView.graphics.removeAll();
-        app.activeView.popup.clear();
-
-    });
-    */
 
     app.searchWidgetNav.on("search-start", function(e) {
         console.log('starting search');
@@ -1766,50 +1672,7 @@ app.activeView.map.add(flf);  // adds the layer to the map
     });
 
 
-
-    // query the server on each click so we can limit data in initialization
-    function populateDetailsPanel_new(layer, id) {
-        //id = id.split('.')[1];
-        showHideCalcitePanels("#panelDetails", "#collapseDetails");
-        console.log("fetching data from server");
-        console.log(id);
-        console.log(layer);
-        const headers = {
-            'Accept-Profile': 'geochron'
-        };
-
-        // #1 get the rest of the data from the main table ----------------------------
-        fetch('https://postgrest-seamlessgeolmap-734948684426.us-central1.run.app/'+layer+'?__esri_wfs_id__=eq.'+id, {
-        //fetch('https://postgrest-seamlessgeolmap-734948684426.us-central1.run.app/'+layer+'?labsampleid=eq.L-672H', {    
-            headers: headers
-        })
-            .then(response => response.json())
-            .then(results => {
-                console.log(results);
-            if (results.length === 0) return;
-        })
-        .catch(error => {
-            console.error('Error fetching data:', error);
-        });
-            
-    }; // end function
-
-
     /*
-    function populateDetailsPanel_3(layer, id) {
-        console.log(id);
-        console.log(layer);
-        let maplayer =  app.map.findLayerById(layer);
-        console.log(maplayer);
-		const query3 = { // autocasts as Query
-			where: "__esri_wfs_id__ = "+id,
-			returnGeometry: false,
-			outFields: ["*"]
-		};
-        maplayer.queryFeatures(query3).then(function(results){
-			console.log(results);
-        });
-    }
 
     // use a querytask to get all available details from server
     function populateDetailsPanel_4(layer, id) {
@@ -1843,45 +1706,8 @@ app.activeView.map.add(flf);  // adds the layer to the map
             });
             document.getElementById("attDetails").innerHTML = "";
 
-            //results.forEach(function (item, n) {
-            $.each(results, function(key, value) { //jquery works, dojo doesn't
-                //console.log(key+", "+value);
-                if (value) {
-                    console.log(key);
-                    console.log(value);
-                    if (key == "Shape_Length" || key == "Shape_Area" || key == "OBJECTID") {
-                        return;
+            populateDetails(results);
 
-                    } else if (key == "URL_Link") { // wrap the link field in an html link so its clickable
-                        document.getElementById("attDetails").innerHTML += aliases[key] + ": <a target='_blank' href='" + value + "'>" + value + "</a><br>";
-
-                    } else if (key == "Publication_URL") { // wrap the link field in an html link so its clickable
-                        document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: <a target='_blank' href='" + value + "'>" + value + "</a><br>";
-
-                    } else if (key == "Lab") { // format date
-                        document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: <a id='getLabInfo' href='javascript:void(0);'>" + value + "</a>&nbsp;&nbsp;(Click to Get Lab Details)<br>";
-
-                    } else if (key == "RecordDate" || key == "LabTestDate" || key == "UpdateDate" || key == "SampleDate") { // format date
-                        date = moment(value).format('l');
-                        document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: " + date + "<br>";
-                        //console.log(value);
-
-                    } else {
-
-                        // note that we use the key to substitue the ALIASES for the key
-                        document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: " + value + "<br>";
-                    }
-                    //document.getElementById("attDetails").innerHTML += 'Download .csv of this data: <a id="dataDownload" href='javascript:void(0);'>Here</a><br>';
-
-                } // end if (value)
-
-
-            });
-            $(document).off("click", "#getLabInfo");
-            $(document).on("click", "#getLabInfo", function(e) {
-                console.log(e);
-                getLabDetails(labName, layer);
-            });
         });
 
         // change details panel title
@@ -1892,61 +1718,15 @@ app.activeView.map.add(flf);  // adds the layer to the map
         }
 
     } // end populateDetailsPanel
-    */
 
-
-    function populateDetailsPanel(rslt,layer) {
+        function populateDetailsPanel_new(rslt,layer) {
             document.getElementById("attDetails").innerHTML = "";
             console.log(rslt);
             //var obProperty = rslt[0];
             var labName = rslt.lab;
             console.log(labName);
-            var aliases = [];
-            //we are going to have to create a custom alias function for EVERY table, based on a given field here...
-            $.each(rslt, function(n, i) { //jquery works, dojo doesn't
-                //console.log(n+", "+i);
-                //aliases[i.name] = i.alias; // we'll use this in a few lines to substitute names for aliases
-                aliases[n] = n;
-            });
-            console.log(aliases);
 
-            //results.forEach(function (item, n) {
-            $.each(rslt, function(key, value) { //jquery works, dojo doesn't
-                //console.log(key+", "+value);
-               
-                if (value) {
-                    //console.log(key);
-                    //console.log(value);
-                    if (key === "shape_length" || key === "shape_area" || key === "__esri_wfs_id__") {
-                        return;Zoom
-
-                    } else if (key === "url_link") { // wrap the link field in an html link so it's clickable
-                        document.getElementById("attDetails").innerHTML += aliases[key] + ": <a target='_blank' href='" + value + "'>" + value + "</a><br>";
-
-                    } else if (key === "publication_url") { // wrap the link field in an html link so it's clickable
-                        document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: <a target='_blank' href='" + value + "'>" + value + "</a><br>";
-
-                    } else if (key === "lab") { // format date
-                        document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: <a id='getLabInfo' href='javascript:void(0);'>" + value + "</a>&nbsp;&nbsp;(Click to Get Lab Details)<br>";
-
-                    } else if (key === "recorddate" || key === "labtestdate" || key === "updatedate" || key === "sampledate") { // format date
-                        date = moment(value).format('l');
-                        document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: " + date + "<br>";
-
-                    } else {
-                        // Note that we use the key to substitute the ALIASES for the key
-                        // document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: " + value + "<br>";
-                        document.getElementById("attDetails").innerHTML += "<b>" + key + "</b>: " + value + "<br>";
-                    }
-                    //document.getElementById("attDetails").innerHTML += 'Download .csv of this data: <a id="dataDownload" href='javascript:void(0);'>Here</a><br>';
-                } // end if (value)
-                
-                $(document).off("click", "#getLabInfo");
-                $(document).on("click", "#getLabInfo", function(e) {
-                    console.log(e);
-                    getLabDetails(labName, layer);
-                });
-            });
+            populateDetails(rslt);
 
         // change details panel title
         //if (layer == 0) {
@@ -1957,47 +1737,128 @@ app.activeView.map.add(flf);  // adds the layer to the map
 
     } // end function
 
+    */
 
-    // do a query task to get all the lab details and add them to details pane
-    function getLabDetails(lab, layer) {
-        console.log("GETTING LAB DETAILS!!!!!!!!"); console.log(lab);
+    // query the server on each click so we can limit data in initialization
+    function populateDetailsPanel(atts, lyrid) {
+        //id = id.split('.')[1];
+        showHideCalcitePanels("#panelDetails", "#collapseDetails");
+        //console.log("fetching data from server");
+        //console.log(lyrid);
+        //console.log(atts);
+        var sid = atts.__esri_wfs_id__.split('.').pop();
+        //var sid = atts.objectid;
 
         // #1 get the rest of the data from the main table ----------------------------
-        fetch('https://postgrest-seamlessgeolmap-734948684426.us-central1.run.app/'+layer+'?labcode='+lab, {
-        // 'https://postgrest-seamlessgeolmap-734948684426.us-central1.run.app/'+layer+'?labsampleid=eq.L-672H'   
+        fetch('https://postgrest-seamlessgeolmap-734948684426.us-central1.run.app/'+lyrid+'?objectid=eq.'+sid, {  
             headers: {'Accept-Profile': 'geochron'}
         })
             .then(response => response.json())
             .then(results => {
-                document.getElementById("attDetails").innerHTML = "";
-                var results = rslt.features[0].attributes;
-                $.each(results, function(key, value) { //jquery works, dojo doesn't
-                    if (value) {
-                        //console.log(key+", "+value)
-                        if (key == "RecordDate" || key == "UpdateDate") {
-                            date = moment(value).format('l');
-                            document.getElementById("attDetails").innerHTML += "<b>" + key + "</b>: " + date + "<br>";
-                        } else if (key == "LabURL") {
-                            document.getElementById("attDetails").innerHTML += "<b>" + key + "</b>: <a target='_blank' href='" + value + "'>" + value + "</a><br>";
-                        } else if (key == "OBJECTID" || key == "LabCode" || key == "LabState") {
-                            return;
-                        } else {
-                            document.getElementById("attDetails").innerHTML += "<b>" + key + "</b>: " + value + "<br>";
-                        }
-
-                    }
-                }); // end .each
+                //console.log(results);
+                if (results.length === 0) console.log("error: for some reason the query returned no results");
+                populateDetails(results,lyrid);
         })
         .catch(error => {
             console.error('Error fetching data:', error);
         });
-        /*
-        var queryFtr = new Query(); //build query
-        queryFtr.where = "LabCode = '" + lab + "'"; // "SampleID = 'C9'";   //queryFtr.where = 'SampleID = rowData.SampleID';
-        queryFtr.returnGeometry = false;
-        queryFtr.outFields = ["*"];
-        */
-        document.getElementById("details").innerHTML = "Lab Details";
+            
+    }; // end function
+
+
+    function populateDetails(rslt,lyrid) {
+        rslt = rslt[0];
+        document.getElementById("attDetails").innerHTML = "";
+        $.each(rslt, function(key, value) { //jquery works, dojo doesn't
+        //console.log(key+", "+value);
+        
+            if (value) {
+                //console.log(value);
+                if (!aliases[key]) aliases[key] = key;  // if we haven't defined a alias, just use the key
+                if (key === "shape_length" || key === "shape_area" || key === "shape" || key === "__esri_wfs_id__" || key === "objectid") {
+                    return;Zoom
+
+                } else if (key === "url_link") { // wrap the link field in an html link so it's clickable
+                    document.getElementById("attDetails").innerHTML += aliases[key] + ": <a target='_blank' href='" + value + "'>" + value + "</a><br>";
+
+                } else if (key === "publication_url") { // wrap the link field in an html link so it's clickable
+                    document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: <a target='_blank' href='" + value + "'>" + value + "</a><br>";
+
+                } else if (key === "lab") { // format date
+                    document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>:" + value + "<br>&nbsp;";
+                    getLabDetails(value, lyrid);  // since below wont work, just add to bottom.
+                    /*
+                    const button = document.createElement('button');
+                    button.textContent = 'Get lab details';
+                    button.addEventListener("click", function() {
+                        console.log('YOU CLICKED ME');
+                        getLabDetails(value, lyrid);
+                    });
+                    document.getElementById("attDetails").appendChild(button); 
+                    let newLine = document.createElement("br");
+                    document.getElementById("attDetails").appendChild(newLine);
+                    */
+
+                } else if (key === "recorddate" || key === "labtestdate" || key === "updatedate" || key === "sampledate") { // format date
+                    date = moment(value).format('l');
+                    document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: " + date + "<br>";
+
+                } else {
+                    document.getElementById("attDetails").innerHTML += "<b>" + aliases[key] + "</b>: " + value + "<br>";
+                }
+                //document.getElementById("attDetails").innerHTML += 'Download .csv of this data: <a id="dataDownload" href='javascript:void(0);'>Here</a><br>';
+            } // end if (value)
+            
+        }); //end .each
+    }
+
+    //  MISSING VALUES TO FIX IN ARRAY!    labreportsrs, conventional1sigma, sampledby, [age_206pb_238u and lots of age_xxxxx like it for U/Th dates]
+
+
+    // do a query task to get all the lab details and add them to details pane
+    function getLabDetails(lab, layer) {
+        //console.log("GETTING LAB DETAILS!!!!!!!!"); console.log(lab);
+
+        // #1 get the rest of the data from the main table ----------------------------
+        fetch('https://postgrest-seamlessgeolmap-734948684426.us-central1.run.app/hazards_laboratory?labcode=eq.'+encodeURI(lab), {
+            headers: {'Accept-Profile': 'geochron'}
+        })
+            .then(response => response.json())
+            .then(rslt => {
+                //console.log(rslt);
+                if (rslt[0]){
+                    //console.log('HERE IS THE RESULT!!!!');
+                    document.getElementById("labDetails").innerHTML =  "<hr><b>Lab Details</b><br>";
+                    //var results = rslt.features[0].attributes;
+                    $.each(rslt[0], function(key, value) { //jquery works, dojo doesn't
+                        if (value) {
+                            //console.log(key+", "+value)
+                            if (key == "recorddate" || key == "updatedate") {
+                                date = moment(value).format('l');
+                                document.getElementById("labDetails").innerHTML += "<b>" + key + "</b>: " + date + "<br>";
+                            } else if (key == "laburl") {
+                                document.getElementById("labDetails").innerHTML += "<b>" + key + "</b>: <a target='_blank' href='" + value + "'>" + value + "</a><br>";
+                            } else if (key == "objectid" || key == "labcode" || key == "labstate") {
+                                return;
+                            } else if (key == "labactive"){
+                                var res = (value === '1') ? 'Yes' :'No';
+                                document.getElementById("labDetails").innerHTML += "<b>" + key + "</b>: " + res + "<br>";
+                            } else {
+                                document.getElementById("labDetails").innerHTML += "<b>" + key + "</b>: " + value + "<br>";
+                            }
+
+                        }
+                    }); // end .each
+                    let text = "Click for Lab Details";
+                    let result = text.link("https://www.w3schools.com");
+                }
+        })
+        //.catch(error => {
+        //    console.error('Error fetching data:', error);
+        //});
+
+        //document.getElementById("details").innerHTML = "Lab Details";
+
     };
 
 
