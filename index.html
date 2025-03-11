@@ -31,6 +31,8 @@
 
   <!-- Calcite Maps Bootstrap -->
   <link rel="stylesheet" href="https://esri.github.io/calcite-maps/dist/css/calcite-maps-bootstrap.min-v0.10.css">
+  <script src="//maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+  
 
   <!-- Calcite Maps -->
   <link rel="stylesheet" href="https://esri.github.io/calcite-maps/dist/css/calcite-maps-arcgis-4.x.min-v0.10.css">
@@ -313,6 +315,7 @@ require([
     "esri/widgets/FeatureTable",
     "esri/widgets/Popup",
     "esri/core/reactiveUtils",
+    "dojo/query",
     // Calcite-maps
     "calcite-maps/calcitemaps-v0.10",
     "calcite-maps/calcitemaps-arcgis-support-v0.10",
@@ -321,7 +324,7 @@ require([
     "bootstrap/Dropdown",
     "bootstrap/Tab",
 
-], function(Map, Basemap, Graphic, SimpleMarkerSymbol, WFSLayer, WFSUtils, FeatureLayer, MapView, Search, Home, Zoom, Compass, Locate, Legend, BasemapToggle, LayerList, FeatureTable, Popup, reactiveUtils, CalciteMaps, CalciteMapsArcGIS
+], function(Map, Basemap, Graphic, SimpleMarkerSymbol, WFSLayer, WFSUtils, FeatureLayer, MapView, Search, Home, Zoom, Compass, Locate, Legend, BasemapToggle, LayerList, FeatureTable, Popup, reactiveUtils, query, CalciteMaps, CalciteMapsArcGIS
 ) {
     // App
     app = {
@@ -456,34 +459,17 @@ require([
     // show or hide any open calicite panels when user clicks for attribute details
     function showHideCalcitePanels(showPanel, showCollapse) {
         // hide all windows
-        $(".panel.in").removeClass("in"); //close any open panels
-        $(".panel-collapse").removeClass("in");
+        //console.log(showPanel);
+        query(".panel.in").removeClass("in"); 
+        query(".panel-collapse").removeClass("in");
 
         // if specified show this calcite panel
         if (showPanel) {
-            //query(showPanel).collapse("show");
-            $(showPanel).addClass("in");
-            $(".panel-heading").css("background-color", "#434141");  //for some reason must re-add this.
-
-            //query(showCollapse).collapse("show");
-            $(showCollapse).addClass("in");
-            // NOTE!!!!  THESE DONT WORK!  I NEED TO ACTUALLY FIND OUT WHAT THE .COLLAPSE CLASS DID, BECAUSE JUST ADDING CLASS 'IN' LEAVES THE DETAILS PANEL HEADER MISSING
+            query(showPanel).collapse("show"); 
+            query(showCollapse).collapse("show");
         }
     }
 
-    // assign click even to fault name so summary goes to Fault Summary panel
-    //function addClickHandler(att, lyr) {
-        /*
-        //var el = $("#dataDetail");
-        $(document).off("click", "#dataDetail");
-        //$("#dataDetail").on("click", function(e) {
-        $(document).on("click", "#dataDetail", function(e) {
-            showHideCalcitePanels("#panelDetails", "#collapseDetails");
-            populateDetailsPanel(lyr, att);
-        });
-        return false;
-        */
-    //}
 
     // fetch info
     var popupAction = {
@@ -530,8 +516,8 @@ require([
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
             //if (isMobile) {
             if ($(window).width() < 960) {
-                app.activeView.popup.close();
-                app.activeView.popup.dockEnabled = false;
+                //app.activeView.popup.close();
+                //app.activeView.popup.dockEnabled = false;
             }
             if (graphic) {
                 if (graphic.layer.name == 'projectarea'){
