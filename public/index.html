@@ -70,20 +70,31 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         display: block !important;
     }
 
-    /* UGS rebrand (ALL-4915): highlight color for links in map popups (info windows)
-       and the About panel, per Rebranding Action Plan "New highlight color: UGS Orange" */
+    /* UGS rebrand (ALL-4915): link color for links in map popups (info windows)
+       and the About panel, per Rebranding Action Plan "Custom Apps: Link colors - blue"
+       using "New primary color: State of Utah Navy Blue" #071D49 */
     .esri-popup a,
     .esri-popup a:visited,
     #collapseInfo .panel-body a,
     #collapseInfo .panel-body a:visited {
-        color: #E37D49;
+        color: #071D49;
     }
 
     .esri-popup a:hover,
     .esri-popup a:focus,
     #collapseInfo .panel-body a:hover,
     #collapseInfo .panel-body a:focus {
-        color: #c66435;
+        color: #14356b;
+    }
+
+    /* UGS rebrand (ALL-4915): header title text replaced with the UGS motto/icon
+       logo lockup, per Rebranding Action Plan "Change out logos in header, footer,
+       and favicon". Image is white (-WHT) for use on the navbar's dark background. */
+    .ugs-header-logo {
+        height: 32px;
+        width: auto;
+        max-width: 100%;
+        vertical-align: middle;
     }
   </style>
   
@@ -123,7 +134,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       <!-- Title -->
       <div class="calcite-title calcite-overflow-hidden">
           <h1 style="display:contents;">
-              <span class="calcite-title-main">Utah Geological Survey</span>
+              <img class="calcite-title-main ugs-header-logo" src="/images/UGS_MottoIcon_Logo_Template-WHT.png" alt="Utah Geological Survey">
               <span class="calcite-title-divider hidden-xs"></span>
               <span class="calcite-title-sub hidden-xs">Utah Geochronology Database</span>
           </h1>
