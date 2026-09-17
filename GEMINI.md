@@ -19,3 +19,10 @@ is in maintenance — prefer minimal, in-style fixes over refactors.
 
 ## Correctness
 - Fail loud on WFS/query errors — don't silently blank the map or grid; handle empty/failed responses.
+
+## Review scope & severity
+- Skip (don't post findings): `package-lock.json`; nothing else generated or vendored — the pinned
+  ArcGIS/Bootstrap/calcite libs load from CDN URLs, not committed into the repo.
+- Blocking here (not a nit): merge to `master` auto-deploys live to prod (`firebase-hosting-merge.yml`,
+  `live` channel) with NO build or test gate, so anything merged ships immediately — a committed
+  secret/token or an unescaped feature/URL-param DOM write (XSS) on this public app is blocking, not a nit.
